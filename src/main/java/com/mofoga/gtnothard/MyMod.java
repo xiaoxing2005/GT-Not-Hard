@@ -1,5 +1,8 @@
 package com.mofoga.gtnothard;
 
+import com.github.bartimaeusnek.bartworks.client.renderer.RendererGlasBlock;
+import com.github.bartimaeusnek.bartworks.system.material.werkstoff_loaders.recipe.CraftingMaterialLoader;
+import com.github.technus.tectech.loader.thing.MachineLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -30,6 +33,7 @@ public class MyMod {
     // load "Do your mod setup. Build whatever data structures you care about. Register recipes." (Remove if not needed)
     public void init(FMLInitializationEvent event) {
         proxy.init(event);
+        new MachineLoader();
     }
 
     @Mod.EventHandler
