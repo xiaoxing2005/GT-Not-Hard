@@ -24,7 +24,7 @@ public class CraftingLoader {
         GameRegistry.addRecipe(
             new ShapedOreRecipe(
                 new ItemStack(new ItemGoldenEgg()),new Object[]{
-                "###","#*#","###",'#',new ItemStack(Items.diamond),'*', Items.stick
+                "###","#*#","###",'#',new ItemStack(Items.diamond),'*', new ItemStack(Items.stick)
                 }
             )
         );
