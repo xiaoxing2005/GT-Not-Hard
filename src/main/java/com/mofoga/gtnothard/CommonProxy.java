@@ -7,6 +7,7 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import loader.BlockLoader;
 import loader.CraftingLoader;
 import loader.ItemLoader;
+import loader.MachinesLoader;
 
 public class CommonProxy {
 
@@ -15,6 +16,7 @@ public class CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         new ItemLoader(event);
         new BlockLoader(event);
+        new MachinesLoader();
 
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
 
