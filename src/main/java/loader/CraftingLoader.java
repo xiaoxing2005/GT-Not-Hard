@@ -42,7 +42,7 @@ public class CraftingLoader {
         );
     }
 
-    private static void registerSmelting(){
+    private static void registerSmelting() {
         GameRegistry.addSmelting(Blocks.dirt,new ItemStack(Items.stick),0.5F);
     }
 
