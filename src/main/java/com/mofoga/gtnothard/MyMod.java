@@ -1,8 +1,6 @@
 package com.mofoga.gtnothard;
 
-import com.github.bartimaeusnek.bartworks.client.renderer.RendererGlasBlock;
-import com.github.bartimaeusnek.bartworks.system.material.werkstoff_loaders.recipe.CraftingMaterialLoader;
-import com.github.technus.tectech.loader.thing.MachineLoader;
+import loader.MachinesLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -12,6 +10,8 @@ import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
+
+import static loader.MachinesLoader.loaderMachines;
 
 @Mod(modid = MyMod.MODID, version = Tags.VERSION, name = "GT Not Hard", acceptedMinecraftVersions = "[1.7.10]")
 public class MyMod {
@@ -33,7 +33,8 @@ public class MyMod {
     // load "Do your mod setup. Build whatever data structures you care about. Register recipes." (Remove if not needed)
     public void init(FMLInitializationEvent event) {
         proxy.init(event);
-        new MachineLoader();
+        loaderMachines();
+        new MachinesLoader();
     }
 
     @Mod.EventHandler
