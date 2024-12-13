@@ -10,7 +10,6 @@ import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.ShapedOreRecipe;
 
-import static loader.ItemLoader.goldenEgg;
 import static loader.MachinesLoader.ChaosMain;
 
 public class CraftingLoader {
@@ -26,13 +25,6 @@ public class CraftingLoader {
             "###","#*#","###",'#', Items.diamond,'*', Items.stick
         });
 */
-        GameRegistry.addRecipe(
-            new ShapedOreRecipe(
-                new ItemStack(goldenEgg),
-                "###","#*#","###",'#',new ItemStack(Items.diamond),'*', new ItemStack(Items.stick)
-            )
-        );
-
         GameRegistry.addRecipe(
             new ShapedOreRecipe(
                 ChaosMain,
