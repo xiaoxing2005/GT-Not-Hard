@@ -5,11 +5,13 @@ import cpw.mods.fml.common.registry.GameRegistry;
 import gregtech.api.enums.ItemList;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.OrePrefixes;
+import gregtech.api.util.GTModHandler;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.ShapedOreRecipe;
 
+import static com.dreammaster.gthandler.GT_Loader_Machines.bitsd;
 import static loader.MachinesLoader.ChaosMain;
 
 public class CraftingLoader {
@@ -20,20 +22,18 @@ public class CraftingLoader {
     }
 
     private static void registerRecipe(){
-/*
-        GameRegistry.addShapedRecipe(new ItemStack(new ItemGoldenEgg()),new Object[]{
-            "###","#*#","###",'#', Items.diamond,'*', Items.stick
-        });
-*/
-        GameRegistry.addRecipe(
-            new ShapedOreRecipe(
-                ChaosMain,
-                "CBC", "FMF", "CBC",
+        GTModHandler.addCraftingRecipe(
+            ChaosMain,
+            bitsd,
+            new Object[] {
+                "CBC",
+                "FMF",
+                "CBC",
                 'M', ItemList.Hull_HV,
                 'B', OrePrefixes.pipeLarge.get(Materials.StainlessSteel),
                 'C', OrePrefixes.circuit.get(Materials.EV),
                 'F', ItemList.Electric_Pump_HV
-            )
+            }
         );
     }
 
