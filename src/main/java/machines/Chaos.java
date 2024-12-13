@@ -168,7 +168,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     }
 
     @Override
-    protected boolean isCorrectMachinePart(ItemStack aStack) {
+    public boolean isCorrectMachinePart(ItemStack aStack) {
         return aStack != null && aStack.getUnlocalizedName().startsWith("gt.blockmachines.");
     }
 
