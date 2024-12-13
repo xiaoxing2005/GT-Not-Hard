@@ -9,9 +9,7 @@ import gregtech.api.util.GTModHandler;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.oredict.ShapedOreRecipe;
 
-import static com.dreammaster.gthandler.GT_Loader_Machines.bitsd;
 import static loader.MachinesLoader.ChaosMain;
 
 public class CraftingLoader {
@@ -20,6 +18,13 @@ public class CraftingLoader {
         registerSmelting();
         registerFuel();
     }
+
+    private static final long bits = GTModHandler.RecipeBits.NOT_REMOVABLE
+        | GTModHandler.RecipeBits.REVERSIBLE
+        | GTModHandler.RecipeBits.BUFFERED;
+
+    private static final long bitsd = GTModHandler.RecipeBits.DISMANTLEABLE
+        | bits;
 
     private static void registerRecipe(){
         GTModHandler.addCraftingRecipe(
