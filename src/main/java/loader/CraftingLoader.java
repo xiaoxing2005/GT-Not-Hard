@@ -2,15 +2,16 @@ package loader;
 
 import cpw.mods.fml.common.IFuelHandler;
 import cpw.mods.fml.common.registry.GameRegistry;
-import item.ItemGoldenEgg;
-import net.minecraft.block.Block;
+import gregtech.api.enums.ItemList;
+import gregtech.api.enums.Materials;
+import gregtech.api.enums.OrePrefixes;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.ShapedOreRecipe;
 
 import static loader.ItemLoader.goldenEgg;
+import static loader.MachinesLoader.ChaosMain;
 
 public class CraftingLoader {
     public CraftingLoader(){
@@ -29,6 +30,17 @@ public class CraftingLoader {
             new ShapedOreRecipe(
                 new ItemStack(goldenEgg),
                 "###","#*#","###",'#',new ItemStack(Items.diamond),'*', new ItemStack(Items.stick)
+            )
+        );
+
+        GameRegistry.addRecipe(
+            new ShapedOreRecipe(
+                ChaosMain,
+                "CBC", "FMF", "CBC",
+                'M', ItemList.Hull_HV,
+                'B', OrePrefixes.pipeLarge.get(Materials.StainlessSteel),
+                'C', OrePrefixes.circuit.get(Materials.EV),
+                'F', ItemList.Electric_Pump_HV
             )
         );
     }
