@@ -27,6 +27,7 @@ public class CraftingLoader {
         | bits;
 
     private static void registerRecipe(){
+        ChaosRecipeLoader.registerDefaultGregtechMaps();
         GTModHandler.addCraftingRecipe(
             ChaosMain,
             bitsd,

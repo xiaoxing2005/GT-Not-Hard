@@ -1,6 +1,6 @@
 package com.mofoga.gtnothard;
 
-import loader.MachinesLoader;
+import loader.CraftingLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,7 +26,9 @@ public class MyMod {
     // preInit "Run before anything else. Read your config, create blocks, items, etc, and register them with the
     // GameRegistry." (Remove if not needed)
     public void preInit(FMLPreInitializationEvent event) {
+
         proxy.preInit(event);
+        //new MachinesLoader();
     }
 
     @Mod.EventHandler
@@ -34,7 +36,8 @@ public class MyMod {
     public void init(FMLInitializationEvent event) {
         proxy.init(event);
         loaderMachines();
-        new MachinesLoader();
+        new CraftingLoader();
+        //new MachinesLoader();
     }
 
     @Mod.EventHandler
