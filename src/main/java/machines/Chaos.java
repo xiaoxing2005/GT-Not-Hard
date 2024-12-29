@@ -20,6 +20,7 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
+import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.*;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.check.CheckRecipeResult;
@@ -27,10 +28,7 @@ import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.recipe.check.SimpleCheckRecipeResult;
 import gregtech.api.recipe.metadata.CompressionTierKey;
 import gregtech.api.render.TextureFactory;
-import gregtech.api.util.ExoticEnergyInputHelper;
-import gregtech.api.util.GTRecipe;
-import gregtech.api.util.GTUtility;
-import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.api.util.*;
 import gregtech.common.blocks.ItemMachines;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -41,6 +39,8 @@ import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import util.ChaosManager;
 
@@ -49,6 +49,7 @@ import javax.annotation.Nonnull;
 import java.util.List;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.*;
+import static gregtech.api.GregTechAPI.METATILEENTITIES;
 import static gregtech.api.enums.GTValues.VN;
 import static gregtech.api.enums.HatchElement.*;
 import static gregtech.api.enums.Textures.BlockIcons.*;
@@ -62,6 +63,7 @@ import mcp.mobius.waila.api.IWailaDataAccessor;
 
 public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISurvivalConstructable {
 
+    //定义机器结构
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final IStructureDefinition<Chaos> STRUCTURE_DEFINITION = StructureDefinition
         .<Chaos>builder()
@@ -71,7 +73,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         .addElement(
             'h',
             buildHatchAdder(Chaos.class)
-                .atLeast(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy)
+                .atLeast(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy.or(ExoticEnergy))
                 .casingIndex(48)
                 .dot(1)
                 .buildAndChain(
@@ -79,6 +81,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
                 )
         )
         .build();
+    private static final Log log = LogFactory.getLog(Chaos.class);
 
     private int mCasingAmount;
 
@@ -87,6 +90,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     private int tTier = 0;
     private int mMult = 0;
     private boolean downtierUEV = true;
+    private boolean isMultiBlock = false;
 
     private void onCasingAdded() {
         mCasingAmount++;
@@ -155,8 +159,15 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     return new ITexture[] {casingTexturePages[0][48]};
     }
 
+    //读取通常大机器配方
     private RecipeMap<?> fetchRecipeMap() {
-        if (isCorrectMachinePart(getControllerSlot())){
+        if (isCorrectMachinePart(getControllerSlot())) {
+            MetaTileEntity e = (MetaTileEntity) METATILEENTITIES[getControllerSlot().getItemDamage()];
+            if (e instanceof MTEMultiBlockBase mteMultiBlockBase) {
+                isMultiBlock = true;
+                return mteMultiBlockBase.getRecipeMap();
+            }
+            isMultiBlock = false;
             return ChaosManager.giveRecipeMap(ChaosManager.getMachineName(getControllerSlot()));
         }
         return null;
@@ -209,6 +220,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         return super.checkProcessing();
     }
 
+    //机器运行逻辑
     @Override
     protected ProcessingLogic createProcessingLogic() {
         return new ProcessingLogic() {
@@ -226,7 +238,16 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
                 }
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
-        }.setMaxParallelSupplier(this::getMaxParallel);
+
+            //高炉线圈炉温设定逻辑
+            @Override
+            protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
+                return super.createOverclockCalculator(recipe).setRecipeHeat(recipe.mSpecialValue)
+                    .setMachineHeat(999999)
+                    .setHeatOC(true)
+                    .setHeatDiscount(true);
+            }
+        }.setMaxParallelSupplier(this::getMaxParallel).setEuModifier(0.00001F);
     }
 
     @Override
@@ -234,13 +255,15 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         return false;
     }
 
+    //判断小机器等级或大机器电压等级
     @Override
     protected void setProcessingLogicPower(ProcessingLogic logic) {
-        logic.setAvailableVoltage(GTValues.V[tTier] * (mLastRecipeMap != null ? mLastRecipeMap.getAmperage() : 1));
+        logic.setAvailableVoltage((isMultiBlock ? getAverageInputVoltage() : GTValues.V[tTier]) * (mLastRecipeMap != null ? mLastRecipeMap.getAmperage() : 1));
         logic.setAvailableAmperage(getMaxParallel());
         logic.setAmperageOC(false);
     }
 
+    //运行时电压等级与无损降频
     private void setTierAndMult() {
         IMetaTileEntity aMachine = ItemMachines.getMetaTileEntity(getControllerSlot());
         if (aMachine instanceof MTETieredMachineBlock) {
@@ -258,11 +281,18 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         }
     }
 
+    //并行数目
     private int getMaxParallel() {
         if (getControllerSlot() == null) {
             return 0;
         }
-        return getControllerSlot().stackSize << mMult;
+        //return getControllerSlot().stackSize << mMult;
+        if (getControllerSlot().stackSize < 31) {
+            return (int) Math.pow(2,getControllerSlot().stackSize);
+        }
+        else {
+            return Integer.MAX_VALUE;
+        }
     }
 
     @Override
