@@ -239,14 +239,16 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
 
+
             //高炉线圈炉温设定逻辑
             @Override
             protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
                 return super.createOverclockCalculator(recipe).setRecipeHeat(recipe.mSpecialValue)
                     .setMachineHeat(999999)
-                    .setHeatOC(true)
+                    .setHeatOC(false)
                     .setHeatDiscount(true);
             }
+
         }.setMaxParallelSupplier(this::getMaxParallel).setEuModifier(0.00001F);
     }
 
@@ -284,7 +286,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     //并行数目
     private int getMaxParallel() {
         if (getControllerSlot() == null) {
-            return 0;
+            return 1;
         }
         //return getControllerSlot().stackSize << mMult;
         if (getControllerSlot().stackSize < 31) {
