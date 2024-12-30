@@ -247,7 +247,9 @@ public class ChaosRecipeLoader {
             tectech.thing.CustomItemList.eM_energyTunnel8_UXV.get(1),
             tectech.thing.CustomItemList.eM_dynamoTunnel8_UXV.get(1),
             tectech.thing.CustomItemList.eM_energyTunnel9_UXV.get(1),
-            tectech.thing.CustomItemList.eM_dynamoTunnel9_UXV.get(1) };
+            tectech.thing.CustomItemList.eM_dynamoTunnel9_UXV.get(1)
+        };
+
 
         // start check assembly line recipes
         checkRecipe: for (var recipe : GTRecipe.RecipeAssemblyLine.sAssemblylineRecipes) {
