@@ -173,6 +173,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         return null;
     }
 
+
     @Override
     public RecipeMap<?> getRecipeMap() {
         return mLastRecipeMap;
@@ -238,7 +239,6 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
                 }
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
-
 
             //高炉线圈炉温设定逻辑
             @Override
