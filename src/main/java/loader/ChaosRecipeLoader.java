@@ -1,5 +1,12 @@
 package loader;
 
+import static tectech.thing.CustomItemList.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import net.minecraft.item.ItemStack;
+
 import goodgenerator.util.ItemRefer;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.ItemList;
@@ -14,27 +21,20 @@ import gregtech.api.recipe.maps.AssemblyLineFrontend;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTRecipeBuilder;
-import net.minecraft.item.ItemStack;
-import util.ChaosManager;
 import gtPlusPlus.api.recipe.GTPPRecipeMaps;
+import util.ChaosManager;
 import util.Utils;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static tectech.thing.CustomItemList.*;
-
 public class ChaosRecipeLoader {
+
     public static void registerDefaultGregtechMaps() {
 
         // Alloy Smelter
         ChaosManager.addRecipeMapToChaos("basicmachine.alloysmelter", RecipeMaps.alloySmelterRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.alloysmelter", SoundResource.IC2_MACHINES_INDUCTION_LOOP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.alloysmelter", SoundResource.IC2_MACHINES_INDUCTION_LOOP);
         // Arc Furnace
         ChaosManager.addRecipeMapToChaos("basicmachine.arcfurnace", RecipeMaps.arcFurnaceRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.arcfurnace", SoundResource.IC2_MACHINES_INDUCTION_LOOP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.arcfurnace", SoundResource.IC2_MACHINES_INDUCTION_LOOP);
         // Assembler
         ChaosManager.addRecipeMapToChaos("basicmachine.assembler", RecipeMaps.assemblerRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.assembler", SoundResource.NONE);
@@ -60,28 +60,23 @@ public class ChaosRecipeLoader {
         ChaosManager.addRecipeMapToChaos("basicmachine.chemicalbath", RecipeMaps.chemicalBathRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.chemicalbath", SoundResource.NONE);
         // Chemical Reactor
-        ChaosManager
-            .addRecipeMapToChaos("basicmachine.chemicalreactor", RecipeMaps.multiblockChemicalReactorRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.chemicalreactor", SoundResource.IC2_MACHINES_EXTRACTOR_OP);
+        ChaosManager.addRecipeMapToChaos("basicmachine.chemicalreactor", RecipeMaps.multiblockChemicalReactorRecipes);
+        ChaosManager.addSoundResourceToChaos("basicmachine.chemicalreactor", SoundResource.IC2_MACHINES_EXTRACTOR_OP);
         // Circuit Assembler
         ChaosManager.addRecipeMapToChaos("basicmachine.circuitassembler", RecipeMaps.circuitAssemblerRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.circuitassembler", SoundResource.NONE);
         // Compressor
         ChaosManager.addRecipeMapToChaos("basicmachine.compressor", RecipeMaps.compressorRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.compressor", SoundResource.IC2_MACHINES_COMPRESSOR_OP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.compressor", SoundResource.IC2_MACHINES_COMPRESSOR_OP);
         // Cutting Machine
         ChaosManager.addRecipeMapToChaos("basicmachine.cutter", RecipeMaps.cutterRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.cutter", SoundResource.NONE);
         // Distillery
         ChaosManager.addRecipeMapToChaos("basicmachine.distillery", RecipeMaps.distilleryRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.distillery", SoundResource.GT_MACHINES_DISTILLERY_LOOP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.distillery", SoundResource.GT_MACHINES_DISTILLERY_LOOP);
         // Electrolyzer
         ChaosManager.addRecipeMapToChaos("basicmachine.electrolyzer", GTPPRecipeMaps.electrolyzerNonCellRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.electrolyzer", SoundResource.IC2_MACHINES_MAGNETIZER_LOOP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.electrolyzer", SoundResource.IC2_MACHINES_MAGNETIZER_LOOP);
         // Extractor
         ChaosManager.addRecipeMapToChaos("basicmachine.extractor", RecipeMaps.extractorRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.extractor", SoundResource.IC2_MACHINES_EXTRACTOR_OP);
@@ -93,12 +88,10 @@ public class ChaosRecipeLoader {
         ChaosManager.addSoundResourceToChaos("basicmachine.fermenter", SoundResource.NONE);
         // Fluid Canner
         ChaosManager.addRecipeMapToChaos("basicmachine.fluidcanner", RecipeMaps.fluidCannerRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.fluidcanner", SoundResource.IC2_MACHINES_EXTRACTOR_OP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.fluidcanner", SoundResource.IC2_MACHINES_EXTRACTOR_OP);
         // Fluid Extractor
         ChaosManager.addRecipeMapToChaos("basicmachine.fluidextractor", RecipeMaps.fluidExtractionRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.fluidextractor", SoundResource.IC2_MACHINES_EXTRACTOR_OP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.fluidextractor", SoundResource.IC2_MACHINES_EXTRACTOR_OP);
         // Fluid Heater
         ChaosManager.addRecipeMapToChaos("basicmachine.fluidheater", RecipeMaps.fluidHeaterRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.fluidheater", SoundResource.NONE);
@@ -113,8 +106,7 @@ public class ChaosRecipeLoader {
         ChaosManager.addSoundResourceToChaos("basicmachine.press", SoundResource.IC2_MACHINES_COMPRESSOR_OP);
         // Laser Engraver
         ChaosManager.addRecipeMapToChaos("basicmachine.laserengraver", RecipeMaps.laserEngraverRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.laserengraver", SoundResource.IC2_MACHINES_MAGNETIZER_LOOP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.laserengraver", SoundResource.IC2_MACHINES_MAGNETIZER_LOOP);
         // Lathe
         ChaosManager.addRecipeMapToChaos("basicmachine.lathe", RecipeMaps.latheRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.lathe", SoundResource.NONE);
@@ -124,15 +116,15 @@ public class ChaosRecipeLoader {
         // Magnetic Separator
         ChaosManager
             .addRecipeMapToChaos("basicmachine.electromagneticseparator", RecipeMaps.electroMagneticSeparatorRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.electromagneticseparator", SoundResource.IC2_MACHINES_MAGNETIZER_LOOP);
+        ChaosManager.addSoundResourceToChaos(
+            "basicmachine.electromagneticseparator",
+            SoundResource.IC2_MACHINES_MAGNETIZER_LOOP);
         // Matter Amplifier
         ChaosManager.addRecipeMapToChaos("basicmachine.amplifab", RecipeMaps.amplifierRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.amplifab", SoundResource.IC2_MACHINES_EXTRACTOR_OP);
         // Microwave
         ChaosManager.addRecipeMapToChaos("basicmachine.microwave", RecipeMaps.microwaveRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.microwave", SoundResource.IC2_MACHINES_ELECTROFURNACE_LOOP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.microwave", SoundResource.IC2_MACHINES_ELECTROFURNACE_LOOP);
         // Mixer
         ChaosManager.addRecipeMapToChaos("basicmachine.mixer", GTPPRecipeMaps.mixerNonCellRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.mixer", SoundResource.NONE);
@@ -145,8 +137,7 @@ public class ChaosRecipeLoader {
             .addSoundResourceToChaos("basicmachine.plasmaarcfurnace", SoundResource.IC2_MACHINES_INDUCTION_LOOP);
         // Polarizer
         ChaosManager.addRecipeMapToChaos("basicmachine.polarizer", RecipeMaps.polarizerRecipes);
-        ChaosManager
-            .addSoundResourceToChaos("basicmachine.polarizer", SoundResource.IC2_MACHINES_MAGNETIZER_LOOP);
+        ChaosManager.addSoundResourceToChaos("basicmachine.polarizer", SoundResource.IC2_MACHINES_MAGNETIZER_LOOP);
         // Printer
         ChaosManager.addRecipeMapToChaos("basicmachine.printer", RecipeMaps.printerRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.printer", SoundResource.IC2_MACHINES_COMPRESSOR_OP);
@@ -172,21 +163,20 @@ public class ChaosRecipeLoader {
         ChaosManager.addRecipeMapToChaos("basicmachine.wiremill", RecipeMaps.wiremillRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.wiremill", SoundResource.IC2_MACHINES_RECYCLER_OP);
 
-        //Alloy Blast Smelter
-        ChaosManager.addRecipeMapToChaos("MTEAlloyBlastSmelter",GTPPRecipeMaps.alloyBlastSmelterRecipes);
-        ChaosManager.addSoundResourceToChaos("MTEAlloyBlastSmelter",SoundResource.NONE);
+        // Alloy Blast Smelter
+        ChaosManager.addRecipeMapToChaos("MTEAlloyBlastSmelter", GTPPRecipeMaps.alloyBlastSmelterRecipes);
+        ChaosManager.addSoundResourceToChaos("MTEAlloyBlastSmelter", SoundResource.NONE);
     }
 
     public static final RecipeMap<RecipeMapBackend> AssemblyLineWithoutResearchRecipe = RecipeMapBuilder
-        .of("recipe.AssemblyLineWithoutResearchRecipe", RecipeMapBackend::new)
+        .of("testrecipes.AssemblyLineWithoutResearchRecipe", RecipeMapBackend::new)
         .maxIO(16, 1, 4, 0)
         .minInputs(1, 0)
         .useSpecialSlot()
-        .disableOptimize()
         .neiTransferRect(88, 8, 18, 72)
         .neiTransferRect(124, 8, 18, 72)
         .neiTransferRect(142, 26, 18, 18)
-        //.neiHandlerInfo(builder -> builder.setDisplayStack(GTCMItemList.IndistinctTentacle.get(1)))
+        // .neiHandlerInfo(builder -> builder.setDisplayStack(GTCMItemList.IndistinctTentacle.get(1)))
         .frontend(AssemblyLineFrontend::new)
         .build();
 
@@ -247,9 +237,7 @@ public class ChaosRecipeLoader {
             tectech.thing.CustomItemList.eM_energyTunnel8_UXV.get(1),
             tectech.thing.CustomItemList.eM_dynamoTunnel8_UXV.get(1),
             tectech.thing.CustomItemList.eM_energyTunnel9_UXV.get(1),
-            tectech.thing.CustomItemList.eM_dynamoTunnel9_UXV.get(1)
-        };
-
+            tectech.thing.CustomItemList.eM_dynamoTunnel9_UXV.get(1) };
 
         // start check assembly line recipes
         checkRecipe: for (var recipe : GTRecipe.RecipeAssemblyLine.sAssemblylineRecipes) {

@@ -1,14 +1,10 @@
 package com.mofoga.gtnothard;
 
-import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import loader.*;
-
-import static com.mofoga.gtnothard.MyMod.proxy;
-import static loader.MachinesLoader.loaderMachines;
 
 public class CommonProxy {
 
@@ -22,7 +18,6 @@ public class CommonProxy {
 
         MyMod.LOG.info(Config.greeting);
         MyMod.LOG.info("I am MyMod at version " + Tags.VERSION);
-
 
     }
 
