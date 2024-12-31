@@ -1,17 +1,15 @@
 package com.mofoga.gtnothard;
 
-import loader.CraftingLoader;
+import static loader.MachinesLoader.loaderMachines;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
-import cpw.mods.fml.common.event.FMLInitializationEvent;
-import cpw.mods.fml.common.event.FMLPostInitializationEvent;
-import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-import cpw.mods.fml.common.event.FMLServerStartingEvent;
-
-import static loader.MachinesLoader.loaderMachines;
+import cpw.mods.fml.common.event.*;
+import loader.AssemblyLineWithoutResearchRecipePool;
+import loader.CraftingLoader;
 
 @Mod(modid = MyMod.MODID, version = Tags.VERSION, name = "GT Not Hard", acceptedMinecraftVersions = "[1.7.10]")
 public class MyMod {
@@ -28,7 +26,7 @@ public class MyMod {
     public void preInit(FMLPreInitializationEvent event) {
 
         proxy.preInit(event);
-        //new MachinesLoader();
+        // new MachinesLoader();
     }
 
     @Mod.EventHandler
@@ -37,13 +35,22 @@ public class MyMod {
         proxy.init(event);
         loaderMachines();
         new CraftingLoader();
-        //new MachinesLoader();
+        // new MachinesLoader();
     }
 
     @Mod.EventHandler
     // postInit "Handle interaction with other mods, complete your setup based on this." (Remove if not needed)
     public void postInit(FMLPostInitializationEvent event) {
         proxy.postInit(event);
+        // ChaosRecipeLoader loadRecipes = new ChaosRecipeLoader();
+        // loadRecipes.loadRecipes();
+
+    }
+
+    @Mod.EventHandler
+    public void completeInit(FMLLoadCompleteEvent event) {
+        AssemblyLineWithoutResearchRecipePool assemblyLineWithoutResearchRecipePool = new AssemblyLineWithoutResearchRecipePool();
+        assemblyLineWithoutResearchRecipePool.loadRecipes();
     }
 
     @Mod.EventHandler

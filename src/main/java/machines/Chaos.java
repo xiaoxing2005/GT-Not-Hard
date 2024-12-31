@@ -1,5 +1,34 @@
 package machines;
 
+import static com.gtnewhorizon.structurelib.structure.StructureUtility.*;
+import static gregtech.api.GregTechAPI.METATILEENTITIES;
+import static gregtech.api.enums.GTValues.VN;
+import static gregtech.api.enums.HatchElement.*;
+import static gregtech.api.enums.Textures.BlockIcons.*;
+import static gregtech.api.metatileentity.BaseTileEntity.TOOLTIP_DELAY;
+import static gregtech.api.metatileentity.implementations.MTEBasicMachine.isValidForLowGravity;
+import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static gregtech.api.util.GTUtility.validMTEList;
+import static loader.ChaosRecipeLoader.AssemblyLineWithoutResearchRecipe;
+
+import java.util.List;
+
+import javax.annotation.Nonnull;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
+import net.minecraft.world.World;
+import net.minecraftforge.common.util.ForgeDirection;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.jetbrains.annotations.NotNull;
+
 import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
@@ -10,6 +39,7 @@ import com.gtnewhorizons.modularui.api.screen.ModularWindow;
 import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
 import com.gtnewhorizons.modularui.common.widget.ButtonWidget;
 import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
+
 import gregtech.GTMod;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
@@ -23,6 +53,7 @@ import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.*;
 import gregtech.api.recipe.RecipeMap;
+import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.recipe.check.SimpleCheckRecipeResult;
@@ -30,56 +61,25 @@ import gregtech.api.recipe.metadata.CompressionTierKey;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.util.*;
 import gregtech.common.blocks.ItemMachines;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.StatCollector;
-import net.minecraft.world.World;
-import net.minecraftforge.common.util.ForgeDirection;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.jetbrains.annotations.NotNull;
-import util.ChaosManager;
-
-import javax.annotation.Nonnull;
-
-import java.util.List;
-
-import static com.gtnewhorizon.structurelib.structure.StructureUtility.*;
-import static gregtech.api.GregTechAPI.METATILEENTITIES;
-import static gregtech.api.enums.GTValues.VN;
-import static gregtech.api.enums.HatchElement.*;
-import static gregtech.api.enums.Textures.BlockIcons.*;
-import static gregtech.api.metatileentity.BaseTileEntity.TOOLTIP_DELAY;
-import static gregtech.api.metatileentity.implementations.MTEBasicMachine.isValidForLowGravity;
-import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
-import static gregtech.api.util.GTUtility.validMTEList;
-
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
+import util.ChaosManager;
 
 public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISurvivalConstructable {
 
-    //定义机器结构
+    // 定义机器结构
     private static final String STRUCTURE_PIECE_MAIN = "main";
-    private static final IStructureDefinition<Chaos> STRUCTURE_DEFINITION = StructureDefinition
-        .<Chaos>builder()
+    private static final IStructureDefinition<Chaos> STRUCTURE_DEFINITION = StructureDefinition.<Chaos>builder()
         .addShape(
             STRUCTURE_PIECE_MAIN,
-            transpose(new String[][] {{ "hhh", "hhh", "hhh" }, { "h~h", "h-h", "hhh" }, { "hhh", "hhh", "hhh" }}))
+            transpose(new String[][] { { "hhh", "hhh", "hhh" }, { "h~h", "h-h", "hhh" }, { "hhh", "hhh", "hhh" } }))
         .addElement(
             'h',
             buildHatchAdder(Chaos.class)
                 .atLeast(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy.or(ExoticEnergy))
                 .casingIndex(48)
                 .dot(1)
-                .buildAndChain(
-                    onElementPass(Chaos::onCasingAdded,ofBlock(GregTechAPI.sBlockCasings4,0))
-                )
-        )
+                .buildAndChain(onElementPass(Chaos::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings4, 0))))
         .build();
     private static final Log log = LogFactory.getLog(Chaos.class);
 
@@ -129,50 +129,48 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     }
 
     @Override
-    public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing, int colorIndex, boolean aActive, boolean redstoneLevel) {
+    public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
+        int colorIndex, boolean aActive, boolean redstoneLevel) {
         if (side == aFacing) {
             if (aActive) {
-                return new ITexture[] {casingTexturePages[0][48],
-                    TextureFactory.builder()
-                        .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE)
-                        .extFacing()
-                        .build(),
+                return new ITexture[] { casingTexturePages[0][48], TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE)
+                    .extFacing()
+                    .build(),
                     TextureFactory.builder()
                         .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW)
                         .extFacing()
                         .glow()
-                        .build()
-                };
+                        .build() };
             }
-            return new ITexture[] {casingTexturePages[0][48],
-                TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY)
-                    .extFacing()
-                    .build(),
+            return new ITexture[] { casingTexturePages[0][48], TextureFactory.builder()
+                .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY)
+                .extFacing()
+                .build(),
                 TextureFactory.builder()
                     .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_GLOW)
                     .extFacing()
                     .glow()
-                    .build()
-            };
+                    .build() };
         }
-    return new ITexture[] {casingTexturePages[0][48]};
+        return new ITexture[] { casingTexturePages[0][48] };
     }
 
-    //读取通常大机器配方
+    // 读取通常大机器配方
     private RecipeMap<?> fetchRecipeMap() {
         if (isCorrectMachinePart(getControllerSlot())) {
             MetaTileEntity e = (MetaTileEntity) METATILEENTITIES[getControllerSlot().getItemDamage()];
             if (e instanceof MTEMultiBlockBase mteMultiBlockBase) {
                 isMultiBlock = true;
-                return mteMultiBlockBase.getRecipeMap();
+                var RecipeMap = mteMultiBlockBase.getRecipeMap();
+                return RecipeMap == RecipeMaps.assemblylineVisualRecipes ? AssemblyLineWithoutResearchRecipe
+                    : RecipeMap;
             }
             isMultiBlock = false;
             return ChaosManager.giveRecipeMap(ChaosManager.getMachineName(getControllerSlot()));
         }
         return null;
     }
-
 
     @Override
     public RecipeMap<?> getRecipeMap() {
@@ -181,7 +179,8 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
 
     @Override
     public boolean isCorrectMachinePart(ItemStack aStack) {
-        return aStack != null && aStack.getUnlocalizedName().startsWith("gt.blockmachines.");
+        return aStack != null && aStack.getUnlocalizedName()
+            .startsWith("gt.blockmachines.");
     }
 
     @Override
@@ -214,24 +213,26 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
             return SimpleCheckRecipeResult.ofFailure("no_machine");
         }
         if (mLockedToSingleRecipe && mSingleRecipeCheck != null) {
-            if (mSingleRecipeCheck.getRecipeMap() != mLastRecipeMap){
+            if (mSingleRecipeCheck.getRecipeMap() != mLastRecipeMap) {
                 return SimpleCheckRecipeResult.ofFailure("machine_mismatch");
             }
         }
         return super.checkProcessing();
     }
 
-    //机器运行逻辑
+    // 机器运行逻辑
     @Override
     protected ProcessingLogic createProcessingLogic() {
         return new ProcessingLogic() {
+
             @Nonnull
             @Override
             protected CheckRecipeResult validateRecipe(@Nonnull GTRecipe recipe) {
                 if (recipe.getMetadataOrDefault(CompressionTierKey.INSTANCE, 0) > 0) {
                     return CheckRecipeResultRegistry.NO_RECIPE;
                 }
-                if (GTMod.gregtechproxy.mLowGravProcessing && recipe.mSpecialValue == -100 && !isValidForLowGravity(recipe, getBaseMetaTileEntity().getWorld().provider.dimensionId)) {
+                if (GTMod.gregtechproxy.mLowGravProcessing && recipe.mSpecialValue == -100
+                    && !isValidForLowGravity(recipe, getBaseMetaTileEntity().getWorld().provider.dimensionId)) {
                     return SimpleCheckRecipeResult.ofFailure("high_gravity");
                 }
                 if (recipe.mEUt > availableVoltage) {
@@ -240,7 +241,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
 
-            //高炉线圈炉温设定逻辑
+            // 高炉线圈炉温设定逻辑
             @Override
             protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
                 return super.createOverclockCalculator(recipe).setRecipeHeat(recipe.mSpecialValue)
@@ -249,7 +250,8 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
                     .setHeatDiscount(true);
             }
 
-        }.setMaxParallelSupplier(this::getMaxParallel).setEuModifier(0.00001F);
+        }.setMaxParallelSupplier(this::getMaxParallel)
+            .setEuModifier(0.00001F);
     }
 
     @Override
@@ -257,21 +259,22 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         return false;
     }
 
-    //判断小机器等级或大机器电压等级
+    // 判断小机器等级或大机器电压等级
     @Override
     protected void setProcessingLogicPower(ProcessingLogic logic) {
-        logic.setAvailableVoltage((isMultiBlock ? getAverageInputVoltage() : GTValues.V[tTier]) * (mLastRecipeMap != null ? mLastRecipeMap.getAmperage() : 1));
+        logic.setAvailableVoltage(
+            (isMultiBlock ? getAverageInputVoltage() : GTValues.V[tTier])
+                * (mLastRecipeMap != null ? mLastRecipeMap.getAmperage() : 1));
         logic.setAvailableAmperage(getMaxParallel());
         logic.setAmperageOC(false);
     }
 
-    //运行时电压等级与无损降频
+    // 运行时电压等级与无损降频
     private void setTierAndMult() {
         IMetaTileEntity aMachine = ItemMachines.getMetaTileEntity(getControllerSlot());
         if (aMachine instanceof MTETieredMachineBlock) {
             tTier = ((MTETieredMachineBlock) aMachine).mTier;
-        }
-        else {
+        } else {
             tTier = 0;
         }
         mMult = 0;
@@ -283,16 +286,15 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         }
     }
 
-    //并行数目
+    // 并行数目
     private int getMaxParallel() {
         if (getControllerSlot() == null) {
             return 1;
         }
-        //return getControllerSlot().stackSize << mMult;
+        // return getControllerSlot().stackSize << mMult;
         if (getControllerSlot().stackSize < 31) {
-            return (int) Math.pow(2,getControllerSlot().stackSize);
-        }
-        else {
+            return (int) Math.pow(2, getControllerSlot().stackSize);
+        } else {
             return Integer.MAX_VALUE;
         }
     }
@@ -357,25 +359,25 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         if (aPlayer.isSneaking()) {
             // Lock to single recipe
             super.onScrewdriverRightClick(side, aPlayer, aX, aY, aZ);
-        }
-        else {
+        } else {
             inputSeparation = !inputSeparation;
-            GTUtility.sendChatToPlayer(aPlayer, StatCollector.translateToLocal("GT5U.machines.separatebus") + " " + inputSeparation);
+            GTUtility.sendChatToPlayer(
+                aPlayer,
+                StatCollector.translateToLocal("GT5U.machines.separatebus") + " " + inputSeparation);
         }
     }
 
     @Override
-    public boolean onWireCutterRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer, float aX, float aY, float aZ) {
+    public boolean onWireCutterRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer,
+        float aX, float aY, float aZ) {
         if (aPlayer.isSneaking()) {
             batchMode = !batchMode;
             if (batchMode) {
                 GTUtility.sendChatToPlayer(aPlayer, "Batch recipes");
-            }
-            else {
+            } else {
                 GTUtility.sendChatToPlayer(aPlayer, "Don't batch recipes");
             }
-        }
-        else {
+        } else {
             downtierUEV = !downtierUEV;
             GTUtility.sendChatToPlayer(aPlayer, "Treat UEV+ machines as multiple UHV " + downtierUEV);
         }
@@ -413,10 +415,12 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         long storedEnergy = 0;
         long maxEnergy = 0;
         for (MTEHatch tHatch : validMTEList(mExoticEnergyHatches)) {
-            storedEnergy += tHatch.getBaseMetaTileEntity().getStoredEU();
-            maxEnergy += tHatch.getBaseMetaTileEntity().getEUCapacity();
+            storedEnergy += tHatch.getBaseMetaTileEntity()
+                .getStoredEU();
+            maxEnergy += tHatch.getBaseMetaTileEntity()
+                .getEUCapacity();
         }
-        return new String[]{
+        return new String[] {
             StatCollector.translateToLocal("GT5U.multiblock.Progress") + ": "
                 + EnumChatFormatting.GREEN
                 + GTUtility.formatNumbers(mProgresstime / 20)
@@ -443,17 +447,17 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
             StatCollector.translateToLocal("GT5U.multiblock.mei") + ": "
                 + EnumChatFormatting.YELLOW
                 + GTUtility
-                .formatNumbers(ExoticEnergyInputHelper.getMaxInputVoltageMulti(getExoticAndNormalEnergyHatchList()))
+                    .formatNumbers(ExoticEnergyInputHelper.getMaxInputVoltageMulti(getExoticAndNormalEnergyHatchList()))
                 + EnumChatFormatting.RESET
                 + " EU/t(*"
                 + GTUtility
-                .formatNumbers(ExoticEnergyInputHelper.getMaxInputAmpsMulti(getExoticAndNormalEnergyHatchList()))
+                    .formatNumbers(ExoticEnergyInputHelper.getMaxInputAmpsMulti(getExoticAndNormalEnergyHatchList()))
                 + "A) "
                 + StatCollector.translateToLocal("GT5U.machines.tier")
                 + ": "
                 + EnumChatFormatting.YELLOW
                 + VN[GTUtility
-                .getTier(ExoticEnergyInputHelper.getMaxInputVoltageMulti(getExoticAndNormalEnergyHatchList()))]
+                    .getTier(ExoticEnergyInputHelper.getMaxInputVoltageMulti(getExoticAndNormalEnergyHatchList()))]
                 + EnumChatFormatting.RESET,
             StatCollector.translateToLocal("GT5U.multiblock.problems") + ": "
                 + EnumChatFormatting.RED
@@ -480,7 +484,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
             StatCollector.translateToLocal("GT5U.Chaos.parallel") + ": "
                 + EnumChatFormatting.GREEN
                 + GTUtility.formatNumbers(getMaxParallel())
-                + EnumChatFormatting.RESET};
+                + EnumChatFormatting.RESET };
     }
 
     @Override
@@ -513,28 +517,29 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         super.addUIWidgets(builder, buildContext);
 
         builder.widget(new ButtonWidget().setOnClick((clickData, widget) -> {
-                    downtierUEV = !downtierUEV;
-                    setTierAndMult();
-                })
-                .setPlayClickSound(true)
-                .setBackground(() -> {
-                    if (downtierUEV) {
-                        return new IDrawable[] { GTUITextures.BUTTON_STANDARD_PRESSED,
-                            GTUITextures.OVERLAY_BUTTON_DOWN_TIERING_ON };
-                    } else {
-                        return new IDrawable[] { GTUITextures.BUTTON_STANDARD,
-                            GTUITextures.OVERLAY_BUTTON_DOWN_TIERING_OFF };
-                    }
-                })
-                .setPos(80, 91)
-                .setSize(16, 16)
-                .addTooltip(StatCollector.translateToLocal("GT5U.gui.button.down_tier"))
-                .setTooltipShowUpDelay(TOOLTIP_DELAY))
+            downtierUEV = !downtierUEV;
+            setTierAndMult();
+        })
+            .setPlayClickSound(true)
+            .setBackground(() -> {
+                if (downtierUEV) {
+                    return new IDrawable[] { GTUITextures.BUTTON_STANDARD_PRESSED,
+                        GTUITextures.OVERLAY_BUTTON_DOWN_TIERING_ON };
+                } else {
+                    return new IDrawable[] { GTUITextures.BUTTON_STANDARD,
+                        GTUITextures.OVERLAY_BUTTON_DOWN_TIERING_OFF };
+                }
+            })
+            .setPos(80, 91)
+            .setSize(16, 16)
+            .addTooltip(StatCollector.translateToLocal("GT5U.gui.button.down_tier"))
+            .setTooltipShowUpDelay(TOOLTIP_DELAY))
             .widget(new FakeSyncWidget.BooleanSyncer(() -> downtierUEV, val -> downtierUEV = val));
     }
 
     @Override
-    public void getWailaNBTData(EntityPlayerMP player, TileEntity tile, NBTTagCompound tag, World world, int x, int y, int z) {
+    public void getWailaNBTData(EntityPlayerMP player, TileEntity tile, NBTTagCompound tag, World world, int x, int y,
+        int z) {
         super.getWailaNBTData(player, tile, tag, world, x, y, z);
         if (mLastRecipeMap != null && getControllerSlot() != null) {
             tag.setString("type", getControllerSlot().getDisplayName());
@@ -542,7 +547,8 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     }
 
     @Override
-    public void getWailaBody(ItemStack itemStack, List<String> currentTip, IWailaDataAccessor accessor, IWailaConfigHandler config) {
+    public void getWailaBody(ItemStack itemStack, List<String> currentTip, IWailaDataAccessor accessor,
+        IWailaConfigHandler config) {
         super.getWailaBody(itemStack, currentTip, accessor, config);
         final NBTTagCompound tag = accessor.getNBTData();
         if (tag.hasKey("type")) {

@@ -1,13 +1,15 @@
 package util;
 
-import gregtech.api.enums.SoundResource;
-import gregtech.api.recipe.RecipeMap;
+import java.util.HashMap;
+
 import net.minecraft.item.ItemStack;
 
-import java.util.HashMap;
+import gregtech.api.enums.SoundResource;
+import gregtech.api.recipe.RecipeMap;
 
 @Deprecated
 public class ChaosManager {
+
     private static final HashMap<String, RecipeMap<?>> mRecipeSaves = new HashMap<>();
     private static final HashMap<String, SoundResource> machineSounds = new HashMap<>();
 
