@@ -169,7 +169,7 @@ public class ChaosRecipeLoader {
     }
 
     public static final RecipeMap<RecipeMapBackend> AssemblyLineWithoutResearchRecipe = RecipeMapBuilder
-        .of("testrecipes.AssemblyLineWithoutResearchRecipe", RecipeMapBackend::new)
+        .of("Chaos.AssemblyLine", RecipeMapBackend::new)
         .maxIO(16, 1, 4, 0)
         .minInputs(1, 0)
         .useSpecialSlot()

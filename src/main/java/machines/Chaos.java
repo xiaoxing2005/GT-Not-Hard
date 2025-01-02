@@ -51,7 +51,12 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.implementations.*;
+import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
+import gregtech.api.metatileentity.implementations.MTEHatch;
+import gregtech.api.metatileentity.implementations.MTEHatchInput;
+import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
+import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
+import gregtech.api.metatileentity.implementations.MTETieredMachineBlock;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.recipe.check.CheckRecipeResult;
@@ -59,7 +64,11 @@ import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.recipe.check.SimpleCheckRecipeResult;
 import gregtech.api.recipe.metadata.CompressionTierKey;
 import gregtech.api.render.TextureFactory;
-import gregtech.api.util.*;
+import gregtech.api.util.ExoticEnergyInputHelper;
+import gregtech.api.util.GTRecipe;
+import gregtech.api.util.GTUtility;
+import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.api.util.OverclockCalculator;
 import gregtech.common.blocks.ItemMachines;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
@@ -247,7 +256,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
                 return super.createOverclockCalculator(recipe).setRecipeHeat(recipe.mSpecialValue)
                     .setMachineHeat(999999)
                     .setHeatOC(false)
-                    .setHeatDiscount(true);
+                    .setHeatDiscount(false);
             }
 
         }.setMaxParallelSupplier(this::getMaxParallel)
