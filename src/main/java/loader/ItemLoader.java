@@ -8,7 +8,7 @@ import cpw.mods.fml.common.registry.GameRegistry;
 public class ItemLoader {
 
     public ItemLoader(FMLPreInitializationEvent event) {
-        // register(ChaosMain, "Chaos");
+
     }
 
     public static void register(Item item, String name) {
