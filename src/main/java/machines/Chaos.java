@@ -15,6 +15,7 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
+import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -95,6 +96,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     private ItemStack lastControllerStack;
     private int tTier = 0;
     private int mMult = 0;
+    private int mode = 0;
     private boolean downtierUEV = true;
     private boolean isMultiBlock = false;
 
@@ -165,17 +167,48 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     // 读取通常大机器配方
     private RecipeMap<?> fetchRecipeMap() {
         if (isCorrectMachinePart(getControllerSlot())) {
+            getControllerSlot().getItemDamage();
+            RecipeMap<?> RecipeMap = getMultifunctionalRecipeMap(getControllerSlot().getItemDamage());
+            if (RecipeMap != null) {
+                return RecipeMap;
+            }
             MetaTileEntity e = (MetaTileEntity) METATILEENTITIES[getControllerSlot().getItemDamage()];
             if (e instanceof MTEMultiBlockBase mteMultiBlockBase) {
                 isMultiBlock = true;
-                var RecipeMap = mteMultiBlockBase.getRecipeMap();
-                return RecipeMap == RecipeMaps.assemblylineVisualRecipes ? AssemblyLineWithoutResearchRecipe
-                    : RecipeMap;
+                RecipeMap = mteMultiBlockBase.getRecipeMap();
+                return RecipeMap == RecipeMaps.assemblylineVisualRecipes ? AssemblyLineWithoutResearchRecipe : RecipeMap;
             }
             isMultiBlock = false;
             return ChaosManager.giveRecipeMap(ChaosManager.getMachineName(getControllerSlot()));
         }
         return null;
+    }
+
+    //潜行左键切换多类型机器的类型
+    @Override
+    public void onLeftclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
+        if (aPlayer.isSneaking() && getBaseMetaTileEntity().isServerSide()) {
+            this.mode = (this.mode + 1) % 3;
+            GTUtility.sendChatToPlayer(aPlayer, "mode:" + this.mode);
+            //GTUtility.sendChatToPlayer(aPlayer, "mode:" + Precise_Auto_Assembler_MT_3662_mod[Math.min(mode,1)]);
+        }
+        super.onLeftclick(aBaseMetaTileEntity, aPlayer);
+    }
+
+    //多类型机器配方列表
+    //private static final String[] Precise_Auto_Assembler_MT_3662_mod = {"precise assembler", "assembler"};
+    private static final RecipeMap<?>[] Precise_Auto_Assembler_MT_3662 = {GoodGeneratorRecipeMaps.preciseAssemblerRecipes, RecipeMaps.assemblerRecipes};
+
+    //读取多类型机器的配方
+    private RecipeMap<?> getMultifunctionalRecipeMap(int meta) {
+        switch (meta) {
+            case 32018 -> {
+                return Precise_Auto_Assembler_MT_3662[Math.min(mode,1)];
+            }
+            default -> {
+                return null;
+            }
+        }
     }
 
     @Override

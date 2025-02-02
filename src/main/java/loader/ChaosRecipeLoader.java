@@ -162,10 +162,6 @@ public class ChaosRecipeLoader {
         // Wiremill
         ChaosManager.addRecipeMapToChaos("basicmachine.wiremill", RecipeMaps.wiremillRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.wiremill", SoundResource.IC2_MACHINES_RECYCLER_OP);
-
-        // Alloy Blast Smelter
-        ChaosManager.addRecipeMapToChaos("MTEAlloyBlastSmelter", GTPPRecipeMaps.alloyBlastSmelterRecipes);
-        ChaosManager.addSoundResourceToChaos("MTEAlloyBlastSmelter", SoundResource.NONE);
     }
 
     public static final RecipeMap<RecipeMapBackend> AssemblyLineWithoutResearchRecipe = RecipeMapBuilder

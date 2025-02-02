@@ -23,8 +23,7 @@ public class CraftingLoader {
         GTModHandler.addCraftingRecipe(
             ChaosMain,
             bitsd,
-            new Object[] { "CBC", "FMF", "CBC", 'M', ItemList.Hull_HV, 'B',
-                OrePrefixes.pipeLarge.get(Materials.StainlessSteel), 'C', OrePrefixes.circuit.get(Materials.EV), 'F',
-                ItemList.Electric_Pump_HV });
+            new Object[] { "CBC", "FMF", "CBC", 'M', ItemList.Hull_HV, 'B', OrePrefixes.pipeLarge.get(Materials.Steel),
+                'C', OrePrefixes.circuit.get(Materials.EV), 'F', ItemList.Electric_Pump_HV });
     }
 }
