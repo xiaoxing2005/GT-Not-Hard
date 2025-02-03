@@ -15,7 +15,6 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
-import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -39,6 +38,7 @@ import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
 import com.gtnewhorizons.modularui.common.widget.ButtonWidget;
 import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
 
+import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
 import gregtech.GTMod;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
@@ -97,6 +97,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     private int tTier = 0;
     private int mMult = 0;
     private int mode = 0;
+    private boolean updateMode = false;
     private boolean downtierUEV = true;
     private boolean isMultiBlock = false;
 
@@ -170,13 +171,15 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
             getControllerSlot().getItemDamage();
             RecipeMap<?> RecipeMap = getMultifunctionalRecipeMap(getControllerSlot().getItemDamage());
             if (RecipeMap != null) {
+                isMultiBlock = true;
                 return RecipeMap;
             }
             MetaTileEntity e = (MetaTileEntity) METATILEENTITIES[getControllerSlot().getItemDamage()];
             if (e instanceof MTEMultiBlockBase mteMultiBlockBase) {
                 isMultiBlock = true;
                 RecipeMap = mteMultiBlockBase.getRecipeMap();
-                return RecipeMap == RecipeMaps.assemblylineVisualRecipes ? AssemblyLineWithoutResearchRecipe : RecipeMap;
+                return RecipeMap == RecipeMaps.assemblylineVisualRecipes ? AssemblyLineWithoutResearchRecipe
+                    : RecipeMap;
             }
             isMultiBlock = false;
             return ChaosManager.giveRecipeMap(ChaosManager.getMachineName(getControllerSlot()));
@@ -184,26 +187,28 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         return null;
     }
 
-    //潜行左键切换多类型机器的类型
+    // 潜行左键切换多类型机器的类型
     @Override
     public void onLeftclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
         if (aPlayer.isSneaking() && getBaseMetaTileEntity().isServerSide()) {
             this.mode = (this.mode + 1) % 3;
+            updateMode = true;
             GTUtility.sendChatToPlayer(aPlayer, "mode:" + this.mode);
-            //GTUtility.sendChatToPlayer(aPlayer, "mode:" + Precise_Auto_Assembler_MT_3662_mod[Math.min(mode,1)]);
+            // GTUtility.sendChatToPlayer(aPlayer, "mode:" + Precise_Auto_Assembler_MT_3662_mod[Math.min(mode,1)]);
         }
         super.onLeftclick(aBaseMetaTileEntity, aPlayer);
     }
 
-    //多类型机器配方列表
-    //private static final String[] Precise_Auto_Assembler_MT_3662_mod = {"precise assembler", "assembler"};
-    private static final RecipeMap<?>[] Precise_Auto_Assembler_MT_3662 = {GoodGeneratorRecipeMaps.preciseAssemblerRecipes, RecipeMaps.assemblerRecipes};
+    // 多类型机器配方列表
+    // private static final String[] Precise_Auto_Assembler_MT_3662_mod = {"precise assembler", "assembler"};
+    private static final RecipeMap<?>[] Precise_Auto_Assembler_MT_3662 = {
+        GoodGeneratorRecipeMaps.preciseAssemblerRecipes, RecipeMaps.assemblerRecipes };
 
-    //读取多类型机器的配方
+    // 读取多类型机器的配方
     private RecipeMap<?> getMultifunctionalRecipeMap(int meta) {
         switch (meta) {
             case 32018 -> {
-                return Precise_Auto_Assembler_MT_3662[Math.min(mode,1)];
+                return Precise_Auto_Assembler_MT_3662[Math.min(mode, 1)];
             }
             default -> {
                 return null;
@@ -242,7 +247,8 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     @Override
     @NotNull
     public CheckRecipeResult checkProcessing() {
-        if (!GTUtility.areStacksEqual(lastControllerStack, getControllerSlot())) {
+        if (!GTUtility.areStacksEqual(lastControllerStack, getControllerSlot()) || updateMode) {
+            if (updateMode) updateMode = false;
             // controller slot has changed
             lastControllerStack = getControllerSlot();
             mLastRecipeMap = fetchRecipeMap();
@@ -281,6 +287,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
             }
 
             // 高炉线圈炉温设定逻辑
+            @NotNull
             @Override
             protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
                 return super.createOverclockCalculator(recipe).setRecipeHeat(recipe.mSpecialValue)
@@ -377,6 +384,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     public void saveNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
         aNBT.setBoolean("downtierUEV", downtierUEV);
+        aNBT.setInteger("mode", mode);
     }
 
     @Override
@@ -391,6 +399,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
             batchMode = aNBT.getBoolean("mUseMultiparallelMode");
         }
         downtierUEV = aNBT.getBoolean("downtierUEV");
+        mode = aNBT.getInteger("mode");
     }
 
     @Override
