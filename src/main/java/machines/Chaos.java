@@ -15,6 +15,8 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
+import bartworks.API.recipe.BartWorksRecipeMaps;
+import gtPlusPlus.api.recipe.GTPPRecipeMaps;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -187,26 +189,133 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         return null;
     }
 
+    // 多类型机器配方列表
+    //磁通量效应监视器-358
+    private static final String[] Magnetic_Flux_Exhibitor_mod = {"Polarizer", "Electromagnetic Separator"};
+    private static final RecipeMap<?>[] Magnetic_Flux_Exhibitor = {RecipeMaps.polarizerRecipes, RecipeMaps.electroMagneticSeparatorRecipes};
+    //涡轮装罐机Pro-360
+    private static final String[] TurboCan_Pro_mod = {"Fluid Canner", "Canner"};
+    private static final RecipeMap<?>[] TurboCan_Pro = {RecipeMaps.fluidCannerRecipes, RecipeMaps.cannerRecipes};
+    //工业辊压机-792
+    private static final String[] Industrial_Material_Press_mod = {"Forming Press", "Bending Machine"};
+    private static final RecipeMap<?>[] Industrial_Material_Press = {RecipeMaps.formingPressRecipes, RecipeMaps.benderRecipes};
+    //工业洗矿厂-850
+    private static final String[] Ore_Washing_Plant_mod = {"Ore Washer", "Simple Washer", "Chemical Bath"};
+    private static final RecipeMap<?>[] Ore_Washing_Plant = {RecipeMaps.oreWasherRecipes, GTPPRecipeMaps.simpleWasherRecipes, RecipeMaps.chemicalBathRecipes};
+    //工业电弧炉-862
+    private static final String[] High_Current_Industrial_Arc_Furnace_mod = {"Electric Arc Furnace", "Plasma Arc Furnace"};
+    private static final RecipeMap<?>[] High_Current_Industrial_Arc_Furnace = {RecipeMaps.arcFurnaceRecipes, RecipeMaps.plasmaArcFurnaceRecipes};
+    //亚马逊仓库-942
+    private static final String[] Amazon_Warehousing_Depot_mod = {"Packager", "Unpackeager"};
+    private static final RecipeMap<?>[] Amazon_Warehousing_Depot = {RecipeMaps.packagerRecipes, RecipeMaps.unpackagerRecipes};
+    //工业切割机-992
+    private static final String[] Industrial_Cutting_Factory_mod = {"Cutting", "Slicing"};
+    private static final RecipeMap<?>[] Industrial_Cutting_Factory = {RecipeMaps.cutterRecipes, RecipeMaps.slicerRecipes};
+    //真空干燥炉-995
+    private static final String[] Utupu_Tanuri_mod = {"Dehydrator", "Vacuum Furnace"};
+    private static final RecipeMap<?>[] Utupu_Tanuri = {GTPPRecipeMaps.chemicalDehydratorNonCellRecipes, GTPPRecipeMaps.vacuumFurnaceRecipes};
+    //黑洞压缩机-3008
+    private static final String[] Pseudostable_Black_Hole_Containment_Field_mod = {"Compressor", "Advanced Neutronium Compressor"};
+    private static final RecipeMap<?>[] Pseudostable_Black_Hole_Containment_Field = {RecipeMaps.compressorRecipes, RecipeMaps.neutroniumCompressorRecipes};
+    //电路装配线-12735
+    private static final String[] Circuit_Assembly_Line_mod = {"Circuit Assembly Line", "Circuit Assembly"};
+    private static final RecipeMap<?>[] Circuit_Assembly_Line = {BartWorksRecipeMaps.circuitAssemblyLineRecipes, RecipeMaps.circuitAssemblerRecipes};
+    //丹格特蒸馏厂-31021
+    private static final String[] Dangote_Distillus_mod = {"Distillery", "distillation tower"};
+    private static final RecipeMap<?>[] Dangote_Distillus = {RecipeMaps.distilleryRecipes, RecipeMaps.distillationTowerRecipes};
+    //精密自动组装机MT-3662-32018
+    private static final String[] Precise_Auto_Assembler_MT_3662_mod = {"Precise Assembler", "Assembler"};
+    private static final RecipeMap<?>[] Precise_Auto_Assembler_MT_3662 = {
+        GoodGeneratorRecipeMaps.preciseAssemblerRecipes, RecipeMaps.assemblerRecipes };
+
+
     // 潜行左键切换多类型机器的类型
     @Override
     public void onLeftclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
         if (aPlayer.isSneaking() && getBaseMetaTileEntity().isServerSide()) {
             this.mode = (this.mode + 1) % 3;
             updateMode = true;
-            GTUtility.sendChatToPlayer(aPlayer, "mode:" + this.mode);
-            // GTUtility.sendChatToPlayer(aPlayer, "mode:" + Precise_Auto_Assembler_MT_3662_mod[Math.min(mode,1)]);
+            switch (getControllerSlot().getItemDamage()) {
+                case 358 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Magnetic_Flux_Exhibitor_mod[Math.min(mode,1)]);
+                }
+                case 360 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + TurboCan_Pro_mod[Math.min(mode,1)]);
+                }
+                case 792 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Industrial_Material_Press_mod[Math.min(mode,1)]);
+                }
+                case 850 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Ore_Washing_Plant_mod[Math.min(mode,2)]);
+                }
+                case 862 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + High_Current_Industrial_Arc_Furnace_mod[Math.min(mode,1)]);
+                }
+                case 942 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Amazon_Warehousing_Depot_mod[Math.min(mode,1)]);
+                }
+                case 992 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Industrial_Cutting_Factory_mod[Math.min(mode,1)]);
+                }
+                case 995 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Utupu_Tanuri_mod[Math.min(mode,1)]);
+                }
+                case 3008 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Pseudostable_Black_Hole_Containment_Field_mod[Math.min(mode,1)]);
+                }
+                case 12735 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Circuit_Assembly_Line_mod[Math.min(mode,1)]);
+                }
+                case 31021 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Dangote_Distillus_mod[Math.min(mode,1)]);
+                }
+                case 32018 -> {
+                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Precise_Auto_Assembler_MT_3662_mod[Math.min(mode,1)]);
+                }
+                default -> {
+                    break;
+                }
+            }
         }
         super.onLeftclick(aBaseMetaTileEntity, aPlayer);
     }
 
-    // 多类型机器配方列表
-    // private static final String[] Precise_Auto_Assembler_MT_3662_mod = {"precise assembler", "assembler"};
-    private static final RecipeMap<?>[] Precise_Auto_Assembler_MT_3662 = {
-        GoodGeneratorRecipeMaps.preciseAssemblerRecipes, RecipeMaps.assemblerRecipes };
-
     // 读取多类型机器的配方
     private RecipeMap<?> getMultifunctionalRecipeMap(int meta) {
         switch (meta) {
+            case 358 -> {
+                return Magnetic_Flux_Exhibitor[Math.min(mode,1)];
+            }
+            case 360 -> {
+                return TurboCan_Pro[Math.min(mode,1)];
+            }
+            case 792 -> {
+                return Industrial_Material_Press[Math.min(mode,1)];
+            }
+            case 850 -> {
+                return Ore_Washing_Plant[Math.min(mode,2)];
+            }
+            case 862 -> {
+                return High_Current_Industrial_Arc_Furnace[Math.min(mode,1)];
+            }
+            case 942 -> {
+                return Amazon_Warehousing_Depot[Math.min(mode,1)];
+            }
+            case 992 -> {
+                return Industrial_Cutting_Factory[Math.min(mode, 1)];
+            }
+            case 995 -> {
+                return Utupu_Tanuri[Math.min(mode,1)];
+            }
+            case 3008 -> {
+                return Pseudostable_Black_Hole_Containment_Field[Math.min(mode,1)];
+            }
+            case 12735 -> {
+                return Circuit_Assembly_Line[Math.min(mode,1)];
+            }
+            case 31021 -> {
+                return Dangote_Distillus[Math.min(mode, 1)];
+            }
             case 32018 -> {
                 return Precise_Auto_Assembler_MT_3662[Math.min(mode, 1)];
             }

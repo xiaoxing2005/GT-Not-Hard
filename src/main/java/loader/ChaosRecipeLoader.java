@@ -5,6 +5,7 @@ import static tectech.thing.CustomItemList.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
 import net.minecraft.item.ItemStack;
 
 import goodgenerator.util.ItemRefer;
@@ -162,6 +163,10 @@ public class ChaosRecipeLoader {
         // Wiremill
         ChaosManager.addRecipeMapToChaos("basicmachine.wiremill", RecipeMaps.wiremillRecipes);
         ChaosManager.addSoundResourceToChaos("basicmachine.wiremill", SoundResource.IC2_MACHINES_RECYCLER_OP);
+
+        //Precise Auto-Assembler MT-3662
+        ChaosManager.addRecipeMapToChaos("Precise Auto-Assembler MT-3662", GoodGeneratorRecipeMaps.preciseAssemblerRecipes);
+        ChaosManager.addRecipeMapToChaos("Precise Auto-Assembler MT-3662", RecipeMaps.assemblerRecipes);
     }
 
     public static final RecipeMap<RecipeMapBackend> AssemblyLineWithoutResearchRecipe = RecipeMapBuilder
