@@ -125,6 +125,10 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Chaos")
             .addInfo("Runs supplied machines as if placed in the world")
+            .addInfo("Parallel quantity = 2^x")
+            .addInfo("x = Number of machines in the controller")
+            .addInfo("If the machine within the controller contains multiple modes,")
+            .addInfo("sneak left click controller to switch machine mode")
             .addSeparator()
             .beginStructureBlock(3, 3, 3, true)
             .addController("Front center")
