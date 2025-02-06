@@ -86,6 +86,7 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         .addElement(
             'h',
             buildHatchAdder(Chaos.class)
+            //HatchElementBuilder.<Chaos>builder()
                 .atLeast(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy.or(ExoticEnergy))
                 .casingIndex(48)
                 .dot(1)
