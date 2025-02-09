@@ -1,59 +1,34 @@
 package machines;
 
-import bartworks.API.recipe.BartWorksRecipeMaps;
-import bartworks.util.Pair;
 import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
-import com.gtnewhorizons.modularui.api.drawable.IDrawable;
-import com.gtnewhorizons.modularui.api.screen.ModularWindow;
-import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
-import com.gtnewhorizons.modularui.common.widget.ButtonWidget;
-import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
-import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
-import goodgenerator.items.GGMaterial;
-import goodgenerator.util.CrackRecipeAdder;
-import gregtech.GTMod;
 import gregtech.api.GregTechAPI;
-import gregtech.api.enums.GTValues;
-import gregtech.api.enums.Materials;
-import gregtech.api.enums.MaterialsUEVplus;
 import gregtech.api.enums.SoundResource;
 import gregtech.api.enums.Textures;
-import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.interfaces.IHatchElement;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.interfaces.tileentity.IWirelessEnergyHatchInformation;
 import gregtech.api.logic.ProcessingLogic;
-import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.metatileentity.implementations.MTEHatchInput;
-import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
-import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
-import gregtech.api.metatileentity.implementations.MTETieredMachineBlock;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
-import gregtech.api.recipe.check.SimpleCheckRecipeResult;
-import gregtech.api.recipe.metadata.CompressionTierKey;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.util.ExoticEnergyInputHelper;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.api.util.OverclockCalculator;
-import gregtech.common.blocks.ItemMachines;
-import gtPlusPlus.api.recipe.GTPPRecipeMaps;
+import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
@@ -65,44 +40,36 @@ import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import org.jetbrains.annotations.NotNull;
 import util.OriginManager;
-import util.TT_MultiMachineBase_EM;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
-import static goodgenerator.main.GGConfigLoader.CoolantEfficiency;
-import static goodgenerator.main.GGConfigLoader.ExcitedLiquidCoe;
-import static gregtech.api.GregTechAPI.METATILEENTITIES;
 import static gregtech.api.enums.GTValues.VN;
 import static gregtech.api.enums.HatchElement.Dynamo;
-import static gregtech.api.enums.HatchElement.Energy;
-import static gregtech.api.enums.HatchElement.ExoticEnergy;
 import static gregtech.api.enums.HatchElement.InputBus;
 import static gregtech.api.enums.HatchElement.InputHatch;
 import static gregtech.api.enums.HatchElement.Maintenance;
-import static gregtech.api.enums.HatchElement.OutputBus;
 import static gregtech.api.enums.HatchElement.OutputHatch;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
-import static gregtech.api.metatileentity.BaseTileEntity.TOOLTIP_DELAY;
-import static gregtech.api.metatileentity.implementations.MTEBasicMachine.isValidForLowGravity;
+import static gregtech.api.util.GTRecipeConstants.LNG_BASIC_OUTPUT;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTUtility.validMTEList;
-import static tectech.thing.metaTileEntity.multi.base.TTMultiblockBase.HatchElement.DynamoMulti;
+import static gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase.GTPPHatchElement.TTDynamo;
 
-public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstructable, IWirelessEnergyHatchInformation {
+public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConstructable, IWirelessEnergyHatchInformation {
 
     protected IStructureDefinition<Origin> STRUCTURE_DEFINITION = null;
     private static final String STRUCTURE_PIECE_MAIN = "main";
-    public IStructureDefinition<Origin> getStructure_EM() {
+
+    @Override
+    public IStructureDefinition<Origin> getStructureDefinition() {
         if (STRUCTURE_DEFINITION == null) {
             STRUCTURE_DEFINITION = StructureDefinition.<Origin>builder()
                 .addShape(
@@ -114,7 +81,7 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
                 .addElement(
                     'h',
                     buildHatchAdder(Origin.class)
-                        .atLeast(InputHatch, OutputHatch, InputBus, Maintenance, Dynamo.or(DynamoMulti))
+                        .atLeast(InputHatch, OutputHatch, Maintenance, Dynamo.or(TTDynamo))
                         .casingIndex(
                             Textures.BlockIcons.getTextureIndex(
                                 Textures.BlockIcons.getCasingTextureForId(
@@ -131,6 +98,18 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
         return STRUCTURE_DEFINITION;
     }
 
+    // 获取机器类型
+    @Override
+    public String getMachineType() {
+        return "Origin";
+    }
+
+    // 获取最大平行配方
+    @Override
+    public int getMaxParallelRecipes() {
+        return 0;
+    }
+
 
     private int mCasingAmount;
     private int mCasingIndex = Textures.BlockIcons.getTextureIndex(Textures.BlockIcons.getCasingTextureForId(
@@ -139,36 +118,13 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
     private RecipeMap<?> mLastRecipeMap;
     private ItemStack lastControllerStack;
     private int tTier = 0;
-    private int mMult = 0;
-    private int mode = 0;
-    private boolean updateMode = false;
-    private boolean isMultiBlock = false;
+
+    private int power = 0;
 
     protected long leftEnergy = 0;
-    protected long trueOutput = 0;
-    protected int trueEff = 0;
     protected FluidStack lockedFluid = null;
     protected int times = 1;
     protected int basicOutput;
-
-    private static final List<Pair<FluidStack, Integer>> excitedLiquid;
-
-    private static final List<Pair<FluidStack, Integer>> coolant;
-
-    static {
-        excitedLiquid = Arrays.asList(
-            new Pair<>(MaterialsUEVplus.Space.getMolten(20L), ExcitedLiquidCoe[0]),
-            new Pair<>(GGMaterial.atomicSeparationCatalyst.getMolten(20), ExcitedLiquidCoe[1]),
-            new Pair<>(Materials.Naquadah.getMolten(20L), ExcitedLiquidCoe[2]),
-            new Pair<>(Materials.Uranium235.getMolten(180L), ExcitedLiquidCoe[3]),
-            new Pair<>(Materials.Caesium.getMolten(180L), ExcitedLiquidCoe[4]));
-        coolant = Arrays.asList(
-            new Pair<>(MaterialsUEVplus.Time.getMolten(20L), CoolantEfficiency[0]),
-            new Pair<>(FluidRegistry.getFluidStack("cryotheum", 1000), CoolantEfficiency[1]),
-            new Pair<>(Materials.SuperCoolant.getFluid(1000L), CoolantEfficiency[2]),
-            new Pair<>(FluidRegistry.getFluidStack("ic2coolant", 1000), CoolantEfficiency[3]));
-    }
-
 
     private void onCasingAdded() {
         mCasingAmount++;
@@ -238,165 +194,9 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
         return new ITexture[] { casingTexturePages[0][mCasingIndex] };
     }
 
-    // 读取通常大机器配方
-    private RecipeMap<?> fetchRecipeMap() {
-        if (isCorrectMachinePart(getControllerSlot())) {
-            getControllerSlot().getItemDamage();
-            RecipeMap<?> RecipeMap = getMultifunctionalRecipeMap(getControllerSlot().getItemDamage());
-            if (RecipeMap != null) {
-                isMultiBlock = true;
-                return RecipeMap;
-            }
-            MetaTileEntity e = (MetaTileEntity) METATILEENTITIES[getControllerSlot().getItemDamage()];
-            if (e instanceof MTEMultiBlockBase mteMultiBlockBase) {
-                isMultiBlock = true;
-                RecipeMap = mteMultiBlockBase.getRecipeMap();
-                return RecipeMap;// = RecipeMaps.assemblylineVisualRecipes;// ? AssemblyLineWithoutResearchRecipe : RecipeMap;
-            }
-            isMultiBlock = false;
-            return OriginManager.giveRecipeMap(OriginManager.getMachineName(getControllerSlot()));
-        }
-        return null;
-    }
-
-    // 多类型机器配方列表
-    //磁通量效应监视器-358
-    private static final String[] Magnetic_Flux_Exhibitor_mod = {"Polarizer", "Electromagnetic Separator"};
-    private static final RecipeMap<?>[] Magnetic_Flux_Exhibitor = {RecipeMaps.polarizerRecipes, RecipeMaps.electroMagneticSeparatorRecipes};
-    //涡轮装罐机Pro-360
-    private static final String[] TurboCan_Pro_mod = {"Fluid Canner", "Canner"};
-    private static final RecipeMap<?>[] TurboCan_Pro = {RecipeMaps.fluidCannerRecipes, RecipeMaps.cannerRecipes};
-    //工业辊压机-792
-    private static final String[] Industrial_Material_Press_mod = {"Forming Press", "Bending Machine"};
-    private static final RecipeMap<?>[] Industrial_Material_Press = {RecipeMaps.formingPressRecipes, RecipeMaps.benderRecipes};
-    //工业洗矿厂-850
-    private static final String[] Ore_Washing_Plant_mod = {"Ore Washer", "Simple Washer", "Chemical Bath"};
-    private static final RecipeMap<?>[] Ore_Washing_Plant = {RecipeMaps.oreWasherRecipes, GTPPRecipeMaps.simpleWasherRecipes, RecipeMaps.chemicalBathRecipes};
-    //工业电弧炉-862
-    private static final String[] High_Current_Industrial_Arc_Furnace_mod = {"Electric Arc Furnace", "Plasma Arc Furnace"};
-    private static final RecipeMap<?>[] High_Current_Industrial_Arc_Furnace = {RecipeMaps.arcFurnaceRecipes, RecipeMaps.plasmaArcFurnaceRecipes};
-    //亚马逊仓库-942
-    private static final String[] Amazon_Warehousing_Depot_mod = {"Packager", "Unpackeager"};
-    private static final RecipeMap<?>[] Amazon_Warehousing_Depot = {RecipeMaps.packagerRecipes, RecipeMaps.unpackagerRecipes};
-    //工业切割机-992
-    private static final String[] Industrial_Cutting_Factory_mod = {"Cutting", "Slicing"};
-    private static final RecipeMap<?>[] Industrial_Cutting_Factory = {RecipeMaps.cutterRecipes, RecipeMaps.slicerRecipes};
-    //真空干燥炉-995
-    private static final String[] Utupu_Tanuri_mod = {"Dehydrator", "Vacuum Furnace"};
-    private static final RecipeMap<?>[] Utupu_Tanuri = {GTPPRecipeMaps.chemicalDehydratorNonCellRecipes, GTPPRecipeMaps.vacuumFurnaceRecipes};
-    //黑洞压缩机-3008
-    private static final String[] Pseudostable_Black_Hole_Containment_Field_mod = {"Compressor", "Advanced Neutronium Compressor"};
-    private static final RecipeMap<?>[] Pseudostable_Black_Hole_Containment_Field = {RecipeMaps.compressorRecipes, RecipeMaps.neutroniumCompressorRecipes};
-    //电路装配线-12735
-    private static final String[] Circuit_Assembly_Line_mod = {"Circuit Assembly Line", "Circuit Assembly"};
-    private static final RecipeMap<?>[] Circuit_Assembly_Line = {BartWorksRecipeMaps.circuitAssemblyLineRecipes, RecipeMaps.circuitAssemblerRecipes};
-    //丹格特蒸馏厂-31021
-    private static final String[] Dangote_Distillus_mod = {"Distillery", "distillation tower"};
-    private static final RecipeMap<?>[] Dangote_Distillus = {RecipeMaps.distilleryRecipes, RecipeMaps.distillationTowerRecipes};
-    //精密自动组装机MT-3662-32018
-    private static final String[] Precise_Auto_Assembler_MT_3662_mod = {"Precise Assembler", "Assembler"};
-    private static final RecipeMap<?>[] Precise_Auto_Assembler_MT_3662 = {
-        GoodGeneratorRecipeMaps.preciseAssemblerRecipes, RecipeMaps.assemblerRecipes };
-
-
-    // 潜行左键切换多类型机器的类型
-    @Override
-    public void onLeftclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
-        if (aPlayer.isSneaking() && getBaseMetaTileEntity().isServerSide()) {
-            this.mode = (this.mode + 1) % 3;
-            updateMode = true;
-            switch (getControllerSlot().getItemDamage()) {
-                case 358 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Magnetic_Flux_Exhibitor_mod[Math.min(mode,1)]);
-                }
-                case 360 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + TurboCan_Pro_mod[Math.min(mode,1)]);
-                }
-                case 792 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Industrial_Material_Press_mod[Math.min(mode,1)]);
-                }
-                case 850 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Ore_Washing_Plant_mod[Math.min(mode,2)]);
-                }
-                case 862 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + High_Current_Industrial_Arc_Furnace_mod[Math.min(mode,1)]);
-                }
-                case 942 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Amazon_Warehousing_Depot_mod[Math.min(mode,1)]);
-                }
-                case 992 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Industrial_Cutting_Factory_mod[Math.min(mode,1)]);
-                }
-                case 995 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Utupu_Tanuri_mod[Math.min(mode,1)]);
-                }
-                case 3008 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Pseudostable_Black_Hole_Containment_Field_mod[Math.min(mode,1)]);
-                }
-                case 12735 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Circuit_Assembly_Line_mod[Math.min(mode,1)]);
-                }
-                case 31021 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Dangote_Distillus_mod[Math.min(mode,1)]);
-                }
-                case 32018 -> {
-                    GTUtility.sendChatToPlayer(aPlayer, "mode:" + Precise_Auto_Assembler_MT_3662_mod[Math.min(mode,1)]);
-                }
-                default -> {
-                    break;
-                }
-            }
-        }
-        super.onLeftclick(aBaseMetaTileEntity, aPlayer);
-    }
-
-    // 读取多类型机器的配方
-    private RecipeMap<?> getMultifunctionalRecipeMap(int meta) {
-        switch (meta) {
-            case 358 -> {
-                return Magnetic_Flux_Exhibitor[Math.min(mode,1)];
-            }
-            case 360 -> {
-                return TurboCan_Pro[Math.min(mode,1)];
-            }
-            case 792 -> {
-                return Industrial_Material_Press[Math.min(mode,1)];
-            }
-            case 850 -> {
-                return Ore_Washing_Plant[Math.min(mode,2)];
-            }
-            case 862 -> {
-                return High_Current_Industrial_Arc_Furnace[Math.min(mode,1)];
-            }
-            case 942 -> {
-                return Amazon_Warehousing_Depot[Math.min(mode,1)];
-            }
-            case 992 -> {
-                return Industrial_Cutting_Factory[Math.min(mode, 1)];
-            }
-            case 995 -> {
-                return Utupu_Tanuri[Math.min(mode,1)];
-            }
-            case 3008 -> {
-                return Pseudostable_Black_Hole_Containment_Field[Math.min(mode,1)];
-            }
-            case 12735 -> {
-                return Circuit_Assembly_Line[Math.min(mode,1)];
-            }
-            case 31021 -> {
-                return Dangote_Distillus[Math.min(mode, 1)];
-            }
-            case 32018 -> {
-                return Precise_Auto_Assembler_MT_3662[Math.min(mode, 1)];
-            }
-            default -> {
-                return null;
-            }
-        }
-    }
-
     @Override
     public RecipeMap<?> getRecipeMap() {
+        //return RecipeMaps.gasTurbineFuels;
         return mLastRecipeMap;
     }
 
@@ -429,66 +229,9 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
     }
 
     @Override
-    public @NotNull CheckRecipeResult checkProcessing_EM() {
-
-        ArrayList<FluidStack> tFluids = getStoredFluids();
-        for (int i = 0; i < tFluids.size() - 1; i++) {
-            for (int j = i + 1; j < tFluids.size(); j++) {
-                if (GTUtility.areFluidsEqual(tFluids.get(i), tFluids.get(j))) {
-                    if ((tFluids.get(i)).amount >= (tFluids.get(j)).amount) {
-                        tFluids.remove(j--);
-                    } else {
-                        tFluids.remove(i--);
-                        break;
-                    }
-                }
-            }
-        }
-
-        GTRecipe tRecipe = GoodGeneratorRecipeMaps.naquadahReactorFuels.findRecipeQuery()
-            .fluids(tFluids.toArray(new FluidStack[0]))
-            .find();
-        if (tRecipe != null) {
-            Pair<FluidStack, Integer> excitedInfo = getExcited(tFluids.toArray(new FluidStack[0]), false);
-            int pall = excitedInfo == null ? 1 : excitedInfo.getValue();
-            if (consumeFuel(
-                CrackRecipeAdder.copyFluidWithAmount(tRecipe.mFluidInputs[0], pall),
-                tFluids.toArray(new FluidStack[0]))) {
-                mOutputFluids = new FluidStack[] {
-                    CrackRecipeAdder.copyFluidWithAmount(tRecipe.mFluidOutputs[0], pall) };
-                basicOutput = tRecipe.mSpecialValue;
-                times = pall;
-                lockedFluid = excitedInfo == null ? null : excitedInfo.getKey();
-                mMaxProgresstime = tRecipe.mDuration;
-                return CheckRecipeResultRegistry.GENERATING;
-            }
-        }
-
-        return CheckRecipeResultRegistry.NO_FUEL_FOUND;
-    }
-
-    public boolean consumeFuel(FluidStack target, FluidStack[] input) {
-        if (target == null) return false;
-        for (FluidStack inFluid : input) {
-            if (inFluid != null && inFluid.isFluidEqual(target) && inFluid.amount >= target.amount) {
-                inFluid.amount -= target.amount;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public Pair<FluidStack, Integer> getExcited(FluidStack[] input, boolean isConsume) {
-        for (Pair<FluidStack, Integer> fluidPair : excitedLiquid) {
-            FluidStack tFluid = fluidPair.getKey();
-            for (FluidStack inFluid : input) {
-                if (inFluid != null && inFluid.isFluidEqual(tFluid) && inFluid.amount >= tFluid.amount) {
-                    if (isConsume) inFluid.amount -= tFluid.amount;
-                    return fluidPair;
-                }
-            }
-        }
-        return null;
+    public @NotNull CheckRecipeResult checkProcessing() {
+        setEnergyUsage(processingLogic);
+        return super.checkProcessing();
     }
 
 
@@ -500,31 +243,23 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
             @Nonnull
             @Override
             protected CheckRecipeResult validateRecipe(@Nonnull GTRecipe recipe) {
-                if (recipe.getMetadataOrDefault(CompressionTierKey.INSTANCE, 0) > 0) {
-                    return CheckRecipeResultRegistry.NO_RECIPE;
+                /*
+                power = recipe.getMetadataOrDefault(LNG_BASIC_OUTPUT, 0);
+                if (power == 65536) {
+                    return CheckRecipeResultRegistry.GENERATING;
+                } else {
+                    return CheckRecipeResultRegistry.NO_FUEL_FOUND;
                 }
-                if (GTMod.gregtechproxy.mLowGravProcessing && recipe.mSpecialValue == -100
-                    && !isValidForLowGravity(recipe, getBaseMetaTileEntity().getWorld().provider.dimensionId)) {
-                    return SimpleCheckRecipeResult.ofFailure("high_gravity");
-                }
-                if (recipe.mEUt > availableVoltage) {
-                    return CheckRecipeResultRegistry.insufficientPower(recipe.mEUt);
-                }
-                return CheckRecipeResultRegistry.SUCCESSFUL;
-            }
 
-            // 高炉线圈炉温设定逻辑
-            @NotNull
-            @Override
-            protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
-                return super.createOverclockCalculator(recipe).setRecipeHeat(recipe.mSpecialValue)
-                    .setMachineHeat(999999)
-                    .setHeatOC(false)
-                    .setHeatDiscount(false);
+                 */
+                return CheckRecipeResultRegistry.GENERATING;
             }
+        };
+    }
 
-        }.setMaxParallelSupplier(this::getMaxParallel)
-            .setEuModifier(0.00001F);
+    @Override
+    protected void setEnergyUsage(ProcessingLogic processingLogic) {
+        lEUt = power;
     }
 
     @Override
@@ -532,42 +267,11 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
         return false;
     }
 
-    // 判断小机器等级或大机器电压等级
-    @Override
-    protected void setProcessingLogicPower(ProcessingLogic logic) {
-        logic.setAvailableVoltage(
-            (isMultiBlock ? getAverageInputVoltage() : GTValues.V[tTier])
-                * (mLastRecipeMap != null ? mLastRecipeMap.getAmperage() : 1));
-        logic.setAvailableAmperage(getMaxParallel());
-        logic.setAmperageOC(false);
-    }
-
-    /*
-    // 运行时电压等级与无损降频
-    private void setTierAndMult() {
-        IMetaTileEntity aMachine = ItemMachines.getMetaTileEntity(getControllerSlot());
-        if (aMachine instanceof MTETieredMachineBlock) {
-            tTier = ((MTETieredMachineBlock) aMachine).mTier;
-        } else {
-            tTier = 0;
-        }
-        mMult = 0;
-        if (downtierUEV && tTier > 9) {
-            // Lowers down the tier by 1 to allow for bigger parallel
-            tTier--;
-            // Multiplies Parallels by 4x, keeping the energy cost
-            mMult = 2;
-        }
-    }
-
-     */
-
     // 并行数目
     private int getMaxParallel() {
         if (getControllerSlot() == null) {
             return 1;
         }
-        // return getControllerSlot().stackSize << mMult;
         if (getControllerSlot().stackSize < 31) {
             return (int) Math.pow(2, getControllerSlot().stackSize);
         } else {
@@ -575,24 +279,24 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
         }
     }
 
+    //更新输入仓recipemap
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
         super.onPostTick(aBaseMetaTileEntity, aTick);
         if (mMachine && aTick % 20 == 0) {
-            for (MTEHatchInputBus tInputBus : mInputBusses) {
-                tInputBus.mRecipeMap = mLastRecipeMap;
-            }
             for (MTEHatchInput tInputHatch : mInputHatches) {
                 tInputHatch.mRecipeMap = mLastRecipeMap;
             }
         }
     }
 
+    //创造模式自动搭建
     @Override
     public void construct(ItemStack aStack, boolean aHintsOnly) {
         buildPiece(STRUCTURE_PIECE_MAIN, aStack, aHintsOnly, 1, 1, 0);
     }
 
+    //生存模式自动搭建
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) {
@@ -603,6 +307,58 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
 
     private boolean checkHatches() {
         return mMaintenanceHatches.size() == 1;
+    }
+
+    //能量输出
+    @Override
+    public boolean addEnergyOutput(long aEU) {
+        if (aEU <= 0) {
+            return true;
+        }
+        if (!this.mAllDynamoHatches.isEmpty()) {
+            return addEnergyOutputMultipleDynamos(aEU, true);
+        }
+        return false;
+    }
+
+    //能量输出到动力仓
+    @Override
+    public boolean addEnergyOutputMultipleDynamos(long aEU, boolean aAllowMixedVoltageDynamos) {
+        int injected = 0;
+        long aFirstVoltageFound = -1;
+        for (MTEHatch aDynamo : validMTEList(mAllDynamoHatches)) {
+            long aVoltage = aDynamo.maxEUOutput();
+            // Check against voltage to check when hatch mixing
+            if (aFirstVoltageFound == -1) {
+                aFirstVoltageFound = aVoltage;
+            }
+        }
+
+        long leftToInject;
+        long aVoltage;
+        int aAmpsToInject;
+        int aRemainder;
+        int ampsOnCurrentHatch;
+        for (MTEHatch aDynamo : validMTEList(mAllDynamoHatches)) {
+            leftToInject = aEU - injected;
+            aVoltage = aDynamo.maxEUOutput();
+            aAmpsToInject = (int) (leftToInject / aVoltage);
+            aRemainder = (int) (leftToInject - (aAmpsToInject * aVoltage));
+            ampsOnCurrentHatch = (int) Math.min(aDynamo.maxAmperesOut(), aAmpsToInject);
+
+            // add full amps
+            aDynamo.getBaseMetaTileEntity()
+                .increaseStoredEnergyUnits(aVoltage * ampsOnCurrentHatch, false);
+            injected += aVoltage * ampsOnCurrentHatch;
+
+            // add reminder
+            if (aRemainder > 0 && ampsOnCurrentHatch < aDynamo.maxAmperesOut()) {
+                aDynamo.getBaseMetaTileEntity()
+                    .increaseStoredEnergyUnits(aRemainder, false);
+                injected += aRemainder;
+            }
+        }
+        return injected > 0;
     }
 
     @Override
@@ -648,15 +404,16 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
     }
 
     private List<IHatchElement<? super Origin>> getAllowedHatches() {
-        return ImmutableList.of(InputHatch, OutputHatch, InputBus, Maintenance, Dynamo, DynamoMulti);
+        return ImmutableList.of(InputHatch, OutputHatch, InputBus, Maintenance, Dynamo, TTDynamo);
     }
 
     @Override
-    public boolean checkMachine_EM(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
+    public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
         mCasingAmount = 0;
         return checkPiece(STRUCTURE_PIECE_MAIN, 1, 1, 0) && mCasingAmount >= 14 && checkHatches();
     }
 
+    //机器详细运行数据
     @Override
     public String[] getInfoData() {
         long storedEnergy = 0;
@@ -759,34 +516,6 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
         return aSlot == getControllerSlotIndex();
     }
 
-    /*
-    @Override
-    public void addUIWidgets(ModularWindow.Builder builder, UIBuildContext buildContext) {
-        super.addUIWidgets(builder, buildContext);
-
-        builder.widget(new ButtonWidget().setOnClick((clickData, widget) -> {
-                    downtierUEV = !downtierUEV;
-                    setTierAndMult();
-                })
-                .setPlayClickSound(true)
-                .setBackground(() -> {
-                    if (downtierUEV) {
-                        return new IDrawable[] { GTUITextures.BUTTON_STANDARD_PRESSED,
-                            GTUITextures.OVERLAY_BUTTON_DOWN_TIERING_ON };
-                    } else {
-                        return new IDrawable[] { GTUITextures.BUTTON_STANDARD,
-                            GTUITextures.OVERLAY_BUTTON_DOWN_TIERING_OFF };
-                    }
-                })
-                .setPos(80, 91)
-                .setSize(16, 16)
-                .addTooltip(StatCollector.translateToLocal("GT5U.gui.button.down_tier"))
-                .setTooltipShowUpDelay(TOOLTIP_DELAY))
-            .widget(new FakeSyncWidget.BooleanSyncer(() -> downtierUEV, val -> downtierUEV = val));
-    }
-
-     */
-
     @Override
     public void getWailaNBTData(EntityPlayerMP player, TileEntity tile, NBTTagCompound tag, World world, int x, int y,
                                 int z) {
@@ -805,6 +534,30 @@ public class Origin extends TT_MultiMachineBase_EM implements ISurvivalConstruct
             currentTip.add("Machine: " + EnumChatFormatting.YELLOW + tag.getString("type"));
         } else {
             currentTip.add("Machine: " + EnumChatFormatting.YELLOW + "None");
+        }
+    }
+
+    // 读取通常大机器配方
+    private RecipeMap<?> fetchRecipeMap() {
+        if (isCorrectMachinePart(getControllerSlot())) {
+            getControllerSlot().getItemDamage();
+            RecipeMap<?> RecipeMap = getMultifunctionalRecipeMap(getControllerSlot().getItemDamage());
+            if (RecipeMap != null) {
+                return RecipeMap;
+            }
+        }
+        return null;
+    }
+
+    // 读取机器的配方
+    private RecipeMap<?> getMultifunctionalRecipeMap(int meta) {
+        switch (meta) {
+            case 1119 -> {
+                return RecipeMaps.gasTurbineFuels;
+            }
+            default -> {
+                return null;
+            }
         }
     }
 
