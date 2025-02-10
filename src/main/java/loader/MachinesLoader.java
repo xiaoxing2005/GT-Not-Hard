@@ -12,7 +12,7 @@ public class MachinesLoader {
 
     public static void loaderMachines() {
         ChaosMain = new Chaos(25565, "Chaos", "Chaos").getStackForm(1);
-        OriginMain = new Origin(25566, "Origin", "Origin").getStackForm(1);
+        OriginMain = new Origin(25531, "Origin", "Origin").getStackForm(1);
     }
 
 }

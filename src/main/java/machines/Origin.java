@@ -1,715 +1,333 @@
 package machines;
 
-import com.gtnewhorizon.structurelib.alignment.IAlignmentLimits;
+import com.dreammaster.block.BlockList;
+import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
-import com.gtnewhorizon.structurelib.structure.IStructureElement;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
-import gregtech.GTMod;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.items.MetaGeneratedTool;
+import gregtech.api.logic.ProcessingLogic;
+import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.metatileentity.implementations.MTEBasicGenerator;
 import gregtech.api.metatileentity.implementations.MTEHatch;
-import gregtech.api.metatileentity.implementations.MTEHatchDynamo;
-import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
+import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
+import gregtech.api.recipe.maps.FuelBackend;
 import gregtech.api.render.TextureFactory;
+import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.api.util.TurbineStatCalculator;
-import gregtech.api.util.shutdown.ShutDownReason;
 import gregtech.api.util.shutdown.ShutDownReasonRegistry;
-import gtPlusPlus.api.objects.Logger;
-import gtPlusPlus.api.objects.minecraft.BlockPos;
-import gtPlusPlus.core.block.ModBlocks;
-import gtPlusPlus.core.util.math.MathUtils;
-import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.MTEHatchTurbine;
+import gregtech.common.tileentities.generators.MTEGasTurbine;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
-import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
-import gtPlusPlus.xmod.gregtech.common.tileentities.machines.multi.production.turbines.MTELargerTurbineBase;
 import net.minecraft.block.Block;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Collection;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
-import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
-import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
+import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlockAnyMeta;
+import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlockUnlocalizedName;
+import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlocksTiered;
+import static gregtech.api.GregTechAPI.METATILEENTITIES;
+import static gregtech.api.enums.GTValues.V;
 import static gregtech.api.enums.HatchElement.Dynamo;
-import static gregtech.api.enums.HatchElement.InputBus;
 import static gregtech.api.enums.HatchElement.InputHatch;
-import static gregtech.api.enums.HatchElement.Maintenance;
 import static gregtech.api.enums.HatchElement.Muffler;
-import static gregtech.api.enums.HatchElement.OutputHatch;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_GLOW;
-import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_ACTIVE;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_ACTIVE_GLOW;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_GLOW;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
-import static gregtech.api.util.GTUtility.getCasingTextureIndex;
+import static gregtech.api.util.GTStructureUtility.ofFrame;
 import static gregtech.api.util.GTUtility.validMTEList;
-import static gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase.GTPPHatchElement.TTDynamo;
+import static net.minecraft.init.Blocks.iron_bars;
+import static net.minecraft.util.StatCollector.translateToLocalFormatted;
 
 public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConstructable {
-    private static final String STRUCTURE_PIECE_MAIN = "main";
-    private static final ClassValue<IStructureDefinition<Origin>> STRUCTURE_DEFINITION = new ClassValue<>() {
-        @Override
-        @SuppressWarnings("SpellCheckingInspection")
-        protected IStructureDefinition<Origin> computeValue(Class<?> type) {
-            return StructureDefinition.<Origin>builder()
-                .addShape(
-                    STRUCTURE_PIECE_MAIN,
-                    (new String[][] {
-                        { "hhh", "hhh", "hhh" },
-                        { "h~h", "h-h", "hth" },
-                        { "hhh", "hhh", "hhh" } }
-                    )
-                )
-                .addElement(
-                    't',
-                    buildHatchAdder(Origin.class)
-                        .adder(Origin::addTurbineHatch)
-                        .hatchClass(MTEHatchTurbine.class)
-                        .dot(1)
-                        .build()
-                )
-                .addElement(
-                    'h',
-                    buildHatchAdder(Origin.class)
-                        .atLeast(InputBus, InputHatch, OutputHatch, Dynamo.or(TTDynamo), Maintenance, Muffler)
-                        .casingIndex(48)
-                        .dot(1)
-                        .buildAndChain(onElementPass(Origin::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings4, 12)))
-                )
-                .build();
-        }
-    };
 
-    private int mCasingAmount;
-    protected int baseEff = 0;
-    protected long optFlow = 0;
-    protected long euPerTurbine = 0;
-    protected double realOptFlow = 0;
-    protected int storedFluid = 0;
-    protected int counter = 0;
-    protected boolean looseFit = false;
-    protected float[] flowMultipliers = new float[] { 1, 1, 1 };
-
-    public ITexture frontFace = TextureFactory.of(TexturesGtBlock.Overlay_Machine_Controller_Advanced);
-    public ITexture frontFaceActive = TextureFactory.of(TexturesGtBlock.Overlay_Machine_Controller_Advanced_Active);
-
-    @Override
-    public MultiblockTooltipBuilder createTooltip() {
-        final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Origin")
-            .addInfo("Runs supplied machines as if placed in the world")
-            .addSeparator()
-            .beginStructureBlock(3, 3, 3, true)
-            .addController("Front center")
-            .addCasingInfoRange("Tungstensteel Turbine Casing", 14, 24, false)
-            .addDynamoHatch("Any casing", 1)
-            .addMaintenanceHatch("Any casing", 1)
-            .addInputBus("Any casing", 1)
-            .addInputHatch("Any casing", 1)
-            .addOutputHatch("Any casing", 1)
-            .addInfo("Turbine Hatch Background Center")
-            .toolTipFinisher();
-        return tt;
+    public Origin(int aID, String aName, String aNameRegional) {
+        super(aID, aName, aNameRegional);
     }
 
-    public ArrayList<MTEHatchTurbine> mTurbineRotorHatches = new ArrayList<>();
+    public Origin(String aName) {
+        super(aName);
+    }
 
-    private void onCasingAdded() {
-        mCasingAmount++;
+    private long tFuel = 0;
+    private long tEu = 0;
+
+    @Override
+    public void saveNBTData(NBTTagCompound aNBT) {
+        super.saveNBTData(aNBT);
+        aNBT.setLong("tFule",tFuel);
+        aNBT.setLong("tEu",tEu);
     }
 
     @Override
-    public IStructureDefinition<MTELargerTurbineBase> getStructureDefinition() {
-        return STRUCTURE_DEFINITION.get(getClass());
+    public void loadNBTData(NBTTagCompound aNBT) {
+        super.saveNBTData(aNBT);
+        this.tFuel = aNBT.getLong("tFule");
+        this.tEu = aNBT.getLong("tEu");
     }
 
-    private boolean requiresMufflers() {
-        if (!GTMod.gregtechproxy.mPollution) {
-            return false;
-        }
-        return getPollutionPerSecond(null) > 0;
-    }
+    private ItemStack InputItemStack;
+    private FluidStack InputFluidStack;
 
     @Override
-    public void clearHatches() {
-        super.clearHatches();
-        mTurbineRotorHatches.clear();
+    protected ProcessingLogic createProcessingLogic() {
+        return new ProcessingLogic().setMaxParallelSupplier(this::getMaxParallelRecipes);
     }
 
+    @Nonnull
     @Override
-    public boolean checkStructure(boolean aForceReset, IGregTechTileEntity aBaseMetaTileEntity) {
-        boolean f = super.checkStructure(aForceReset, aBaseMetaTileEntity);
-        if (f) {
-            for (MTEHatchTurbine tHatch : mTurbineRotorHatches) {
-                tHatch.sendUpdate();
+    public CheckRecipeResult checkProcessing() {
+        ItemStack slot = getControllerSlot();
+        mMaxProgresstime = 0;
+        int Voltage = 0;
+        long lFuel;
+        if (slot != null){
+            MetaTileEntity tile = (MetaTileEntity) METATILEENTITIES[slot.getItemDamage()];
+            if (tile instanceof  MTEBasicGenerator generator){
+                GTRecipe recipe = getFluidRecipe(generator,getStoredFluids());
+                if (recipe != null){
+                    lFuel = (long) recipe.mSpecialValue * generator.getEfficiency();
+                    Voltage = (int) V[generator.mTier];
+                    FluidStack stack = recipe.getRepresentativeFluidInput(0);
+                    if (stack == null){
+                        ItemStack itemStack = recipe.getRepresentativeInput(0);
+                        if (!GTUtility.isStackValid(itemStack)){
+                           InputFluidStack = GTUtility.getFluidForFilledItem(itemStack, true);
+                            if (InputFluidStack != null){
+                                tFuel = lFuel;
+                                mMaxProgresstime = 1;
+                            }
+                        }
+                    }
+                }else{
+                    recipe = getItemRecipe(generator,getAllStoredInputs());
+                    if (recipe != null){
+                        lFuel = (long) recipe.mSpecialValue * generator.getEfficiency();
+                        Voltage = (int) V[generator.mTier];
+                        InputItemStack = recipe.getRepresentativeInput(0);
+                        tFuel = lFuel;
+                        mMaxProgresstime = 1;
+                    }
+                }
             }
         }
-        return f;
-    }
-
-    @Override
-    public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
-        // we do not check for casing count here. the bare minimal is 372 but we only require 360
-        boolean aStructure = checkPiece(STRUCTURE_PIECE_MAIN, 3, 3, 0);
-        log("Structure Check: " + aStructure);
-        if (mTurbineRotorHatches.size() != 12 || mMaintenanceHatches.size() != 1
-            || (mDynamoHatches.isEmpty() && mTecTechDynamoHatches.isEmpty())
-            || (requiresMufflers() && mMufflerHatches.size() != 4)
-            || mInputBusses.isEmpty()
-            || mInputHatches.isEmpty()
-            || (requiresOutputHatch() && mOutputHatches.isEmpty())) {
-            log(
-                "Bad Hatches - Turbine Housings: " + mTurbineRotorHatches.size()
-                    + ", Maint: "
-                    + mMaintenanceHatches.size()
-                    + ", Dynamo: "
-                    + mDynamoHatches.size()
-                    + ", Muffler: "
-                    + mMufflerHatches.size()
-                    + ", Input Buses: "
-                    + mInputBusses.size()
-                    + ", Input Hatches: "
-                    + mInputHatches.size()
-                    + ", Output Hatches: "
-                    + mOutputHatches.size());
-            return false;
+        if (mMaxProgresstime > 0) {
+            lEUt = (long) Voltage * getMaxParallelRecipes();
+            return CheckRecipeResultRegistry.GENERATING;
         }
-        return aStructure;
+        return CheckRecipeResultRegistry.NO_RECIPE;
+    }
+
+    public GTRecipe getFluidRecipe(MTEBasicGenerator generator,ArrayList<FluidStack> FluidStackList) {
+            RecipeMap<?> tRecipes = generator.getRecipeMap();
+            if (!(FluidStackList.isEmpty() || !(tRecipes.getBackend() instanceof FuelBackend tFuels))) {
+                for (var fluidStack : FluidStackList){
+                return tFuels.findFuel(fluidStack);
+                }
+            }
+
+        return null;
+    }
+
+    public GTRecipe getItemRecipe(MTEBasicGenerator generator,ArrayList<ItemStack> ItemStacks) {
+        RecipeMap<?> tRecipes = generator.getRecipeMap();
+        if (!ItemStacks.isEmpty() || getRecipeMap() == null){
+            for (var itemStack : ItemStacks){
+                if (!(GTUtility.isStackInvalid(itemStack)) && generator.solidFuelOverride(itemStack)){
+                    return getRecipeMap().findRecipeQuery()
+                        .items(itemStack)
+                        .find();
+                }
+            }
+        }
+        return null;
+    }
+
+    @NotNull
+    @Override
+    public Collection<RecipeMap<?>> getAvailableRecipeMaps() {
+        return super.getAvailableRecipeMaps();
     }
 
     @Override
-    public void construct(ItemStack stackSize, boolean hintsOnly) {
-        buildPiece(STRUCTURE_PIECE_MAIN, stackSize, hintsOnly, 3, 3, 0);
+    public String getMachineType() {
+        return "";
+    }
+
+    @Override
+    public int getMaxParallelRecipes() {
+        var itemStack = getControllerSlot();
+        if (!GTUtility.isStackInvalid(itemStack)){
+        return getControllerSlot().stackSize;
+        }
+        return  0;
+    }
+
+    private static final String STRUCTURE_PIECE_MAIN = "main";
+    private static String[][] Shape =  new String[][] { { "   B   ", "  BBB  ", "  BBB  ", "BHBBBHB", "BBB~BBB" },
+        { "  FFF  ", " FBBBF ", " FBCBF ", "HFBBBFH", "BDDDDDB" },
+        { "  AFA  ", " AEEEA ", " AECEA ", "HFEEEFH", "BDDDDDB" },
+        { "  AFA  ", " A G A ", " AG GA ", "HF G FH", "BDDDDDB" },
+        { "  AFA  ", " A G A ", " AG GA ", "HF G FH", "BDDDDDB" },
+        { "  AFA  ", " AEEEA ", " AECEA ", "HFEEEFH", "BDDDDDB" },
+        { "  FFF  ", " FBBBF ", " FBCBF ", "HFBBBFH", "BDDDDDB" },
+        { "  BBB  ", " BBCBB ", " BCCCB ", "BBCCCBB", "BBBBBBB" }};
+
+    @Override
+    public void construct(ItemStack itemStack, boolean b) {
+        buildPiece(STRUCTURE_PIECE_MAIN, itemStack, b, 3, 4, 0);
     }
 
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        int realBudget = elementBudget >= 200 ? elementBudget : Math.min(200, elementBudget * 2);
-        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 3, 3, 0, realBudget, env, false, true);
+        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 3, 4, 0, elementBudget, env, false, true);
     }
 
-    public boolean addTurbineHatch(final IGregTechTileEntity aTileEntity, final int aBaseCasingIndex) {
-        if (aTileEntity == null) {
-            return false;
-        }
-        final IMetaTileEntity aMetaTileEntity = aTileEntity.getMetaTileEntity();
-        if (aMetaTileEntity == null) {
-            return false;
-        }
-        if (aMetaTileEntity instanceof MTEHatchTurbine aTurbineHatch) {
-            log("Found MTEHatchTurbine");
-            updateTexture(aTileEntity, aBaseCasingIndex);
-            IGregTechTileEntity g = this.getBaseMetaTileEntity();
-            if (aTurbineHatch.setController(new BlockPos(g.getXCoord(), g.getYCoord(), g.getZCoord(), g.getWorld()))) {
-                boolean aDidAdd = this.mTurbineRotorHatches.add(aTurbineHatch);
-                Logger.INFO("Injected Controller into Turbine Assembly. Found: " + this.mTurbineRotorHatches.size());
-                return aDidAdd;
-            } else {
-                Logger.INFO("Failed to inject controller into Turbine Assembly Hatch.");
-            }
-        }
-        log("Bad Turbine Housing");
-        return false;
-    }
+    private static final ITexture SOLID_STEEL_MACHINE_CASING = Textures.BlockIcons
+        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0));
+    private static IStructureDefinition<Origin> STRUCTURE_DEFINITION = null;
+    private int mBlockTier = 0;
 
     @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return getMaxEfficiency(aStack) > 0;
+    public IStructureDefinition<Origin> getStructureDefinition() {
+        if (STRUCTURE_DEFINITION == null) {
+            STRUCTURE_DEFINITION = StructureDefinition.<Origin>builder()
+                .addShape(
+                    STRUCTURE_PIECE_MAIN, Shape)
+                .addElement('A', ofBlockUnlocalizedName("IC2", "blockAlloyGlass", 0, true))
+                //
+                .addElement(
+                    'B',
+                    buildHatchAdder(Origin.class).atLeast(Dynamo, InputHatch, Muffler)
+                        .casingIndex(Textures.BlockIcons.getTextureIndex(SOLID_STEEL_MACHINE_CASING))
+                        .dot(1)
+                        .buildAndChain(GregTechAPI.sBlockCasings2, 0))
+                .addElement('C', ofBlock(GregTechAPI.sBlockCasings2, 13))
+                .addElement('D', ofBlock(GregTechAPI.sBlockCasings4, 1))
+                .addElement('E', ofBlock(GregTechAPI.sBlockCasings5, 0))
+                .addElement('F', ofFrame(Materials.StainlessSteel))
+                .addElement(
+                    'G',
+                    ofBlocksTiered(
+                        Origin::getTierOfBlock,
+                        ImmutableList.of(
+                            Pair.of(BlockList.BronzePlatedReinforcedStone.getBlock(), 0), // 三硝基甲苯HV
+                            Pair.of(BlockList.SteelPlatedReinforcedStone.getBlock(), 0), // PETN EV
+                            Pair.of(BlockList.TitaniumPlatedReinforcedStone.getBlock(), 0), // 硝化甘油 IV
+                            Pair.of(BlockList.TungstensteelPlatedReinforcedStone.getBlock(), 0), // 奥克托今 LUV
+                            Pair.of(BlockList.NaquadahPlatedReinforcedStone.getBlock(), 0)// CL-20 ZPM
+                        ),
+                        0,
+                        (m, t) -> m.mBlockTier = t,
+                        m -> m.mBlockTier))
+                .addElement('H', ofBlockAnyMeta(iron_bars))
+                .build();
+        }
+        return STRUCTURE_DEFINITION;
     }
 
-    public abstract int getCasingTextureIndex();
-
-    public abstract int getFuelValue(FluidStack aLiquid);
-
-    public static boolean isValidTurbine(ItemStack aTurbine) {
-        return (aTurbine != null && aTurbine.getItem() instanceof MetaGeneratedTool
-            && aTurbine.getItemDamage() >= 170
-            && aTurbine.getItemDamage() <= 176);
-    }
-
-    protected ArrayList<ItemStack> getAllBufferedTurbines() {
-        startRecipeProcessing();
-        ArrayList<ItemStack> aTurbinesInStorage = new ArrayList<>();
-        for (ItemStack aStack : getStoredInputs()) {
-            if (isValidTurbine(aStack)) {
-                int stackSize = aStack.stackSize;
-                while (stackSize > 0) {
-                    int tmpStackSize = Math.min(stackSize, aStack.getMaxStackSize());
-                    ItemStack copy = aStack.copy();
-                    copy.stackSize = tmpStackSize;
-                    aTurbinesInStorage.add(copy);
-                    stackSize -= tmpStackSize;
-                }
-            }
-        }
-        endRecipeProcessing();
-        return aTurbinesInStorage;
-    }
-
-    public boolean areAllTurbinesTheSame() {
-        ArrayList<MTEHatchTurbine> aTurbineAssemblies = getFullTurbineAssemblies();
-        if (aTurbineAssemblies.size() < 12) {
-            log("Found " + aTurbineAssemblies.size() + ", expected 12.");
-            return false;
-        }
-        ArrayList<Materials> aTurbineMats = new ArrayList<>();
-        ArrayList<Integer> aTurbineSizes = new ArrayList<>();
-        for (MTEHatchTurbine aHatch : aTurbineAssemblies) {
-            aTurbineMats.add(MetaGeneratedTool.getPrimaryMaterial(aHatch.getTurbine()));
-            aTurbineSizes.add(getTurbineSize(aHatch.getTurbine()));
-        }
-        Materials aBaseMat = aTurbineMats.get(0);
-        int aBaseSize = aTurbineSizes.get(0);
-        for (int aSize : aTurbineSizes) {
-            if (aBaseSize != aSize) {
-                return false;
-            }
-        }
-        for (Materials aMat : aTurbineMats) {
-            if (aBaseMat != aMat) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public static int getTurbineSize(ItemStack aTurbine) {
-        if (isValidTurbine(aTurbine)) {
-            if (aTurbine.getItemDamage() >= 170 && aTurbine.getItemDamage() < 172) {
-                return 1;
-            } else if (aTurbine.getItemDamage() >= 172 && aTurbine.getItemDamage() < 174) {
-                return 2;
-            } else if (aTurbine.getItemDamage() >= 174 && aTurbine.getItemDamage() < 176) {
-                return 3;
-            } else if (aTurbine.getItemDamage() >= 176 && aTurbine.getItemDamage() < 178) {
-                return 4;
-            }
+    public static int getTierOfBlock(Block block, int meta) {
+        if (block == BlockList.BronzePlatedReinforcedStone.getBlock()) {
+            return 1;
+        } else if (block == BlockList.SteelPlatedReinforcedStone.getBlock()) {
+            return 2;
+        } else if (block == BlockList.TitaniumPlatedReinforcedStone.getBlock()) {
+            return 3;
+        } else if (block == BlockList.TungstensteelPlatedReinforcedStone.getBlock()) {
+            return 4;
+        } else if (block == BlockList.NaquadahPlatedReinforcedStone.getBlock()) {
+            return 5;
         }
         return 0;
     }
 
-    public static String getTurbineSizeString(int aSize) {
-        return switch (aSize) {
-            case 1 -> "Small Turbine";
-            case 2 -> "Turbine";
-            case 3 -> "Large Turbine";
-            case 4 -> "Huge Turbine";
-            default -> "";
-        };
+    @Override
+    protected MultiblockTooltipBuilder createTooltip() {
+        final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
+        tt.addMachineType(translateToLocalFormatted("mte.ImplosionGenerator"))
+            .addInfo(translateToLocalFormatted("mte.ImplosionGenerator.tooltips1"))
+            .addInfo(translateToLocalFormatted("mte.ImplosionGenerator.tooltips2"))
+            .addInfo(translateToLocalFormatted("mte.ImplosionGenerator.tooltips3"))
+            .beginStructureBlock(7, 5, 8, true)
+            .addController("Front bottom")
+            .addInputHatch("Hint block with dot 1")
+            .addDynamoHatch("Hint block with dot 1")
+            .addMufflerHatch("Hint block with dot 1")
+            .toolTipFinisher();
+
+        return tt;
     }
 
-    protected ArrayList<MTEHatchTurbine> getEmptyTurbineAssemblies() {
-        ArrayList<MTEHatchTurbine> aEmptyTurbineRotorHatches = new ArrayList<>();
-        // log("Checking "+mTurbineRotorHatches.size()+" Assemblies for empties.");
-        for (MTEHatchTurbine aTurbineHatch : this.mTurbineRotorHatches) {
-            if (!aTurbineHatch.hasTurbine()) {
-                aEmptyTurbineRotorHatches.add(aTurbineHatch);
-            }
+    private int getFluidStackAmount(FluidStack fluidStack){
+        ArrayList<FluidStack> fluidStacks = getStoredFluids();
+        int amount = 0;
+        for (var fluid : fluidStacks){
+           if (GTUtility.areFluidsEqual(fluidStack,fluid)){
+               amount += fluid.amount;
+           }
         }
-        return aEmptyTurbineRotorHatches;
+        return amount;
     }
 
-    protected ArrayList<MTEHatchTurbine> getFullTurbineAssemblies() {
-        ArrayList<MTEHatchTurbine> aTurbineRotorHatches = new ArrayList<>();
-        // log("Checking "+mTurbineRotorHatches.size()+" Assemblies for Turbines.");
-        for (MTEHatchTurbine aTurbineHatch : this.mTurbineRotorHatches) {
-            if (aTurbineHatch.hasTurbine()) {
-                // log("Found Assembly with Turbine.");
-                aTurbineRotorHatches.add(aTurbineHatch);
-            }
-        }
-        return aTurbineRotorHatches;
-    }
-
-    protected void depleteTurbineFromStock(ItemStack aTurbine) {
-        if (aTurbine == null) {
-            return;
-        }
-        startRecipeProcessing();
-        for (MTEHatchInputBus aInputBus : this.mInputBusses) {
-            for (int slot = aInputBus.getSizeInventory() - 1; slot >= 0; slot--) {
-                ItemStack aStack = aInputBus.getStackInSlot(slot);
-                if (GTUtility.areStacksEqual(aStack, aTurbine)) {
-                    aStack.stackSize -= aTurbine.stackSize;
-                    updateSlots();
-                    endRecipeProcessing();
-                    return;
-                }
-            }
-        }
-        endRecipeProcessing();
-    }
-
-    @Override
-    public @NotNull CheckRecipeResult checkProcessing() {
-        try {
-            ArrayList<MTEHatchTurbine> aEmptyTurbineRotorHatches = getEmptyTurbineAssemblies();
-            if (!aEmptyTurbineRotorHatches.isEmpty()) {
-                hatch: for (MTEHatchTurbine aHatch : aEmptyTurbineRotorHatches) {
-                    ArrayList<ItemStack> aTurbines = getAllBufferedTurbines();
-                    for (ItemStack aTurbineItem : aTurbines) {
-                        if (aTurbineItem == null) {
-                            continue;
-                        }
-                        if (aHatch.insertTurbine(aTurbineItem.copy())) {
-                            depleteTurbineFromStock(aTurbineItem);
-                            continue hatch;
-                        }
-                    }
-                }
-            }
-
-            if (!getEmptyTurbineAssemblies().isEmpty() || !areAllTurbinesTheSame()) {
-                stopMachine(ShutDownReasonRegistry.NO_TURBINE);
-                return CheckRecipeResultRegistry.NO_TURBINE_FOUND;
-            }
-
-            ArrayList<FluidStack> tFluids = getStoredFluids();
-
-            ItemStack aStack = getFullTurbineAssemblies().get(0)
-                .getTurbine();
-
-            TurbineStatCalculator turbine = new TurbineStatCalculator((MetaGeneratedTool) aStack.getItem(), aStack);
-
-            if (!tFluids.isEmpty()) {
-                if (baseEff == 0 || optFlow == 0
-                    || counter >= 512
-                    || this.getBaseMetaTileEntity()
-                    .hasWorkJustBeenEnabled()
-                    || this.getBaseMetaTileEntity()
-                    .hasInventoryBeenModified()) {
-                    counter = 0;
-                    float aTotalBaseEff = 0;
-                    float aTotalOptimalFlow = 0;
-
-                    aTotalBaseEff += turbine.getEfficiency() * 100;
-                    aTotalOptimalFlow += GTUtility
-                        .safeInt((long) Math.max(Float.MIN_NORMAL, getSpeedMultiplier() * turbine.getOptimalFlow()));
-                    baseEff = MathUtils.roundToClosestInt(aTotalBaseEff);
-                    optFlow = MathUtils.roundToClosestInt(aTotalOptimalFlow);
-                    if (aTotalOptimalFlow < 0) {
-                        aTotalOptimalFlow = 100;
-                    }
-
-                    if (optFlow <= 0 || baseEff <= 0) {
-                        stopMachine(ShutDownReasonRegistry.NONE); // in case the turbine got removed
-                        return CheckRecipeResultRegistry.NO_FUEL_FOUND;
-                    }
-                } else {
-                    counter++;
-                }
-            }
-
-            // How much the turbine should be producing with this flow
-            long newPower = fluidIntoPower(tFluids, turbine);
-            long difference = newPower - this.lEUt; // difference between current output and new output
-
-            // Magic numbers: can always change by at least 10 eu/t, but otherwise by at most 1 percent of the
-            // difference in power level (per tick)
-            // This is how much the turbine can actually change during this tick
-            int maxChangeAllowed = Math.max(10, GTUtility.safeInt(Math.abs(difference) / 100));
-
-            if (Math.abs(difference) > maxChangeAllowed) { // If this difference is too big, use the maximum allowed
-                // change
-                int change = maxChangeAllowed * (difference > 0 ? 1 : -1); // Make the change positive or negative.
-                this.lEUt += change; // Apply the change
-            } else {
-                this.lEUt = newPower;
-            }
-            if (this.lEUt <= 0) {
-                this.lEUt = 0;
-                this.mEfficiency = 0;
-                return CheckRecipeResultRegistry.NO_FUEL_FOUND;
-            } else {
-                this.mMaxProgresstime = 1;
-                this.mEfficiencyIncrease = 10;
-                // Overvoltage is handled inside the MultiBlockBase when pushing out to dynamos. no need to do it here.
-                // Play sounds (GT++ addition - GT multiblocks play no sounds)
-                enableAllTurbineHatches();
-                return CheckRecipeResultRegistry.GENERATING;
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return CheckRecipeResultRegistry.NO_FUEL_FOUND;
-    }
-
-    @Override
-    public boolean doRandomMaintenanceDamage() {
-        if (getMaxParallelRecipes() == 0) {
-            stopMachine(ShutDownReasonRegistry.NO_TURBINE);
-            return false;
-        }
-
-        if (mRuntime++ > 1000) {
-            mRuntime = 0;
-
-            if (getBaseMetaTileEntity().getRandomNumber(6000) < getMaintenanceThreshold()) {
-                causeMaintenanceIssue();
-            }
-            for (MTEHatchTurbine aHatch : getFullTurbineAssemblies()) {
-                // This cycle depletes durability from the turbine rotors.
-                // The amount of times it is run depends on turbineDamageMultiplier
-                // In XL turbines, durability loss is around 5.2-5.3x faster than in singles
-                // To compensate for that, the mEU/t scaling is divided by 5 to make it only slightly faster
-                for (int i = 0; i < getTurbineDamageMultiplier(); i++) {
-                    aHatch.damageTurbine(lEUt / 5, damageFactorLow, damageFactorHigh);
-                }
-            }
-        }
-        return true;
-    }
-
-    @Override
-    public int getMaxParallelRecipes() {
-        return (getFullTurbineAssemblies().size());
-    }
-
-    abstract long fluidIntoPower(ArrayList<FluidStack> aFluids, TurbineStatCalculator turbine);
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 1;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return this.getMaxParallelRecipes() == 12 ? 10000 : 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
-    }
-
-    public boolean isLooseMode() {
-        return looseFit;
-    }
-
-    @Override
-    public String[] getExtraInfoData() {
-        String tRunning = mMaxProgresstime > 0
-            ? EnumChatFormatting.GREEN + StatCollector.translateToLocal("GT5U.turbine.running.true")
-            + EnumChatFormatting.RESET
-            : EnumChatFormatting.RED + StatCollector.translateToLocal("GT5U.turbine.running.false")
-            + EnumChatFormatting.RESET;
-
-        String tMaintenance = getIdealStatus() == getRepairStatus()
-            ? EnumChatFormatting.GREEN + StatCollector.translateToLocal("GT5U.turbine.maintenance.false")
-            + EnumChatFormatting.RESET
-            : EnumChatFormatting.RED + StatCollector.translateToLocal("GT5U.turbine.maintenance.true")
-            + EnumChatFormatting.RESET;
-        int tDura;
-
-        StringBuilder aTurbineDamage = new StringBuilder();
-        for (MTEHatchTurbine aHatch : this.getFullTurbineAssemblies()) {
-            ItemStack aTurbine = aHatch.getTurbine();
-            tDura = MathUtils.safeInt(
-                (long) (100.0f / MetaGeneratedTool.getToolMaxDamage(aTurbine)
-                    * (MetaGeneratedTool.getToolDamage(aTurbine)) + 1));
-            aTurbineDamage.append(EnumChatFormatting.RED)
-                .append(GTUtility.formatNumbers(tDura))
-                .append(EnumChatFormatting.RESET)
-                .append("% | ");
-        }
-
-        long storedEnergy = 0;
-        long maxEnergy = 0;
-        for (MTEHatchDynamo tHatch : validMTEList(mDynamoHatches)) {
-            storedEnergy += tHatch.getBaseMetaTileEntity()
-                .getStoredEU();
-            maxEnergy += tHatch.getBaseMetaTileEntity()
-                .getEUCapacity();
-        }
-
-        boolean aIsSteam = this.getClass()
-            .getName()
-            .toLowerCase()
-            .contains("steam");
-
-        return new String[] {
-            // 8 Lines available for information panels
-            tRunning + ": "
-                + EnumChatFormatting.RED
-                + GTUtility.formatNumbers(((lEUt * mEfficiency) / 10000))
-                + EnumChatFormatting.RESET
-                + " EU/t",
-            tMaintenance,
-            StatCollector.translateToLocal("GT5U.turbine.efficiency") + ": "
-                + EnumChatFormatting.YELLOW
-                + GTUtility.formatNumbers((mEfficiency / 100F))
-                + EnumChatFormatting.RESET
-                + "%",
-            StatCollector.translateToLocal("GT5U.multiblock.energy") + ": "
-                + EnumChatFormatting.GREEN
-                + GTUtility.formatNumbers(storedEnergy)
-                + EnumChatFormatting.RESET
-                + " EU / "
-                + EnumChatFormatting.YELLOW
-                + GTUtility.formatNumbers(maxEnergy)
-                + EnumChatFormatting.RESET
-                + " EU",
-            StatCollector.translateToLocal("GT5U.turbine.flow") + ": " + EnumChatFormatting.YELLOW
-                // Divides optimal flow by 1000 if it's a dense steam
-                + GTUtility.formatNumbers(MathUtils.safeInt((long) realOptFlow) / (isDenseSteam() ? 1000 : 1))
-                + EnumChatFormatting.RESET
-                + " L/"
-                + (getTurbineType().equals("Plasma") ? 's' : 't') // based on turbine type changes flow timing
-                + EnumChatFormatting.YELLOW
-                + " ("
-                + (isLooseMode() ? StatCollector.translateToLocal("GT5U.turbine.loose")
-                : StatCollector.translateToLocal("GT5U.turbine.tight"))
-                + ")",
-            StatCollector.translateToLocal("GT5U.turbine.fuel") + ": "
-                + EnumChatFormatting.GOLD
-                + GTUtility.formatNumbers(storedFluid)
-                + EnumChatFormatting.RESET
-                + "L",
-            StatCollector.translateToLocal("GT5U.turbine.dmg") + ": " + aTurbineDamage,
-            StatCollector.translateToLocal("GT5U.multiblock.pollution") + ": "
-                + EnumChatFormatting.GREEN
-                + getAveragePollutionPercentage()
-                + EnumChatFormatting.RESET
-                + " %" };
-    }
-
-    @Override
-    public boolean isGivingInformation() {
-        return true;
-    }
-
-    @Override
-    public long maxAmperesOut() {
-        return 16;
-    }
-
-    @Override
-    public void saveNBTData(NBTTagCompound aNBT) {
-        super.saveNBTData(aNBT);
-        aNBT.setBoolean("turbineFitting", looseFit);
-    }
-
-    @Override
-    public void loadNBTData(NBTTagCompound aNBT) {
-        super.loadNBTData(aNBT);
-        looseFit = aNBT.getBoolean("turbineFitting");
-    }
-
-    @Override
-    public void onModeChangeByScrewdriver(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
-        if (side == getBaseMetaTileEntity().getFrontFacing()) {
-            looseFit ^= true;
-            GTUtility.sendChatToPlayer(
-                aPlayer,
-                looseFit ? "Fitting: Loose - More Flow" : "Fitting: Tight - More Efficiency");
-        }
-    }
-
-    public final ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side,
-                                       ForgeDirection facing, int aColorIndex, boolean aActive, boolean aRedstone) {
-        return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[1][aColorIndex + 1],
-            facing == side ? getFrontFacingTurbineTexture(aActive)
-                : Textures.BlockIcons.getCasingTextureForId(getCasingTextureIndex()) };
-    }
-
-    protected ITexture getFrontFacingTurbineTexture(boolean isActive) {
-        if (isActive) {
-            return frontFaceActive;
-        }
-        return frontFace;
-    }
-
-    @Override
-    public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
-        super.onPostTick(aBaseMetaTileEntity, aTick);
-        if (aBaseMetaTileEntity.isServerSide()) {
-            if (this.maxProgresstime() > 0 || this.getBaseMetaTileEntity()
-                .hasWorkJustBeenEnabled()) {
-                enableAllTurbineHatches();
-            }
-            if (this.maxProgresstime() <= 0) {
-                stopMachine(ShutDownReasonRegistry.NONE);
+    private int getItemStackAmount(ItemStack itemStack){
+        ArrayList<ItemStack> itemStacks = getAllStoredInputs();
+        int amount = 0;
+        for (var item : itemStacks){
+            if (GTUtility.areStacksEqual(itemStack,item)){
+                amount += item.stackSize;
             }
         }
     }
 
-    @Override
-    public void stopMachine(@NotNull ShutDownReason reason) {
-        baseEff = 0;
-        optFlow = 0;
-        disableAllTurbineHatches();
-        super.stopMachine(reason);
-    }
-
-    @Override
-    public void onRemoval() {
-        super.onRemoval();
-        for (MTEHatchTurbine h : this.mTurbineRotorHatches) {
-            h.clearController();
-        }
-        disableAllTurbineHatches();
-        this.mTurbineRotorHatches.clear();
-    }
-
-    public void enableAllTurbineHatches() {
-        updateTurbineHatches(this.isMachineRunning());
-    }
-
-    public void disableAllTurbineHatches() {
-        updateTurbineHatches(false);
-    }
-
-    private Long mLastHatchUpdate;
-
-    public void updateTurbineHatches(boolean aState) {
-        if (mLastHatchUpdate == null) {
-            mLastHatchUpdate = System.currentTimeMillis() / 1000;
-        }
-        if (this.mTurbineRotorHatches.isEmpty() || ((System.currentTimeMillis() / 1000) - mLastHatchUpdate) <= 2) {
-            return;
-        }
-        for (MTEHatchTurbine h : validMTEList(this.mTurbineRotorHatches)) {
-            h.setActive(aState);
-        }
-
-        mLastHatchUpdate = System.currentTimeMillis() / 1000;
-    }
-
-    @Override
-    protected IAlignmentLimits getInitialAlignmentLimits() {
-        return (d, r, f) -> d == ForgeDirection.UP;
-    }
-
-    /**
-     * Called every tick the Machine runs
-     */
     @Override
     public boolean onRunningTick(ItemStack aStack) {
-        if (lEUt > 0) {
-            addEnergyOutput((lEUt * mEfficiency) / 10000);
+        if (this.lEUt > 0) {
+
+            int amount = (int) (lEUt / tFuel);
+            if (!GTUtility.isStackValid(InputItemStack)){
+                InputItemStack.stackSize = Math.min(amount,getItemStackAmount(InputItemStack));
+                return depleteInput(InputItemStack) && addEnergyOutput(this.lEUt);
+               // depleteInput()
+            }else if (InputFluidStack != null){
+                InputFluidStack.amount = Math.min(amount,getFluidStackAmount(InputFluidStack));
+                return depleteInput(InputFluidStack) && addEnergyOutput(this.lEUt);
+            }
+            if (tEu > 0){
+                if (mProgresstime > 0){
+                    --mProgresstime;
+                }
+            }
             return true;
         }
-        return false;
+        if (this.lEUt < 0) {
+            if (!drainEnergyInput(getActualEnergyUsage())) {
+                stopMachine(ShutDownReasonRegistry.POWER_LOSS);
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -718,13 +336,15 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
             return true;
         }
         if (!this.mAllDynamoHatches.isEmpty()) {
-            return addEnergyOutputMultipleDynamos(aEU, true);
+            tEu -= aEU;
+            long eu = addEnergyOutputMultipleDynamos(aEU, true,0);
+            if (eu > 0) tEu += eu;
         }
         return false;
     }
 
-    @Override
-    public boolean addEnergyOutputMultipleDynamos(long aEU, boolean aAllowMixedVoltageDynamos) {
+
+    public long addEnergyOutputMultipleDynamos(long aEU, boolean aAllowMixedVoltageDynamos,int i) {
         int injected = 0;
         long aFirstVoltageFound = -1;
         for (MTEHatch aDynamo : validMTEList(mAllDynamoHatches)) {
@@ -750,7 +370,7 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
             // add full amps
             aDynamo.getBaseMetaTileEntity()
                 .increaseStoredEnergyUnits(aVoltage * ampsOnCurrentHatch, false);
-            injected += aVoltage * ampsOnCurrentHatch;
+            injected += (int) (aVoltage * ampsOnCurrentHatch);
 
             // add reminder
             if (aRemainder > 0 && ampsOnCurrentHatch < aDynamo.maxAmperesOut()) {
@@ -759,39 +379,58 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
                 injected += aRemainder;
             }
         }
-        return injected > 0;
-    }
-
-    public int getSpeedMultiplier() {
-        return 16;
-    }
-
-    public int getMaintenanceThreshold() {
-        return 1;
-    }
-
-    public int getTurbineDamageMultiplier() {
-        return 1;
+        if (injected > 0){
+            return aEU - injected;
+        }else if (injected == aEU){
+            return 0;
+        }
+        return aEU;
     }
 
     @Override
-    public boolean supportsBatchMode() {
+    public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
+        if (checkPiece(STRUCTURE_PIECE_MAIN, 3, 4, 0) && mMufflerHatches.size() == 1) {
+            fixAllIssues();
+            return true;
+        }
         return false;
     }
 
-    public Origin(int aID, String aName, String aNameRegional) {
-        super(aID, aName, aNameRegional);
+    @Override
+    public int getMaxEfficiency(ItemStack aStack) {
+        return 0;
     }
 
-    public Origin(String aName) {
-        super(aName);
+    @Override
+    public ITexture[] getTexture(IGregTechTileEntity te, ForgeDirection side, ForgeDirection facing, int colorIndex,
+                                 boolean active, boolean redstone) {
+
+        if (side == facing) {
+            if (active) return new ITexture[] { SOLID_STEEL_MACHINE_CASING, TextureFactory.builder()
+                .addIcon(OVERLAY_FRONT_OIL_CRACKER_ACTIVE)
+                .extFacing()
+                .build(),
+                TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_OIL_CRACKER_ACTIVE_GLOW)
+                    .extFacing()
+                    .glow()
+                    .build() };
+            return new ITexture[] { SOLID_STEEL_MACHINE_CASING, TextureFactory.builder()
+                .addIcon(OVERLAY_FRONT_OIL_CRACKER)
+                .extFacing()
+                .build(),
+                TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_OIL_CRACKER_GLOW)
+                    .extFacing()
+                    .glow()
+                    .build() };
+        }
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0)) };
     }
 
-    protected abstract String getTurbineType();
-
-    protected abstract String getCasingName();
-
-    protected abstract boolean isDenseSteam();
-
-    protected abstract boolean requiresOutputHatch();
+    @Override
+    public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
+        return new Origin(this.mName);
+    }
 }
