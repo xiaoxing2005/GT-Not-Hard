@@ -1,26 +1,32 @@
 package machines;
 
+
 import com.dreammaster.block.BlockList;
+
 import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import gregtech.api.GregTechAPI;
-import gregtech.api.enums.Materials;
+import gregtech.api.enums.SoundResource;
 import gregtech.api.enums.Textures;
+import gregtech.api.interfaces.IHatchElement;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
+
 import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEBasicGenerator;
 import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.recipe.RecipeMap;
+
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.recipe.maps.FuelBackend;
 import gregtech.api.render.TextureFactory;
+
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
@@ -30,14 +36,18 @@ import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMult
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
+import util.OriginManager;
 
 import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -47,8 +57,10 @@ import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlockUn
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlocksTiered;
 import static gregtech.api.GregTechAPI.METATILEENTITIES;
 import static gregtech.api.enums.GTValues.V;
+
 import static gregtech.api.enums.HatchElement.Dynamo;
 import static gregtech.api.enums.HatchElement.InputHatch;
+
 import static gregtech.api.enums.HatchElement.Muffler;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_ACTIVE;
@@ -56,6 +68,7 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_A
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_GLOW;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTStructureUtility.ofFrame;
+
 import static gregtech.api.util.GTUtility.validMTEList;
 import static net.minecraft.init.Blocks.iron_bars;
 import static net.minecraft.util.StatCollector.translateToLocalFormatted;
@@ -90,6 +103,7 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
     private ItemStack InputItemStack;
     private FluidStack InputFluidStack;
 
+    // 机器运行逻辑
     @Override
     protected ProcessingLogic createProcessingLogic() {
         return new ProcessingLogic().setMaxParallelSupplier(this::getMaxParallelRecipes);
@@ -97,6 +111,7 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
 
     @Nonnull
     @Override
+
     public CheckRecipeResult checkProcessing() {
         ItemStack slot = getControllerSlot();
         mMaxProgresstime = 0;
@@ -340,9 +355,8 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
             long eu = addEnergyOutputMultipleDynamos(aEU, true,0);
             if (eu > 0) tEu += eu;
         }
-        return false;
+        return null;
     }
-
 
     public long addEnergyOutputMultipleDynamos(long aEU, boolean aAllowMixedVoltageDynamos,int i) {
         int injected = 0;
