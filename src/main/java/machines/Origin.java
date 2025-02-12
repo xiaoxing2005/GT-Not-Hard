@@ -1,5 +1,8 @@
 package machines;
 
+
+import com.dreammaster.block.BlockList;
+
 import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
@@ -12,123 +15,65 @@ import gregtech.api.interfaces.IHatchElement;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.interfaces.tileentity.IWirelessEnergyHatchInformation;
+
 import gregtech.api.logic.ProcessingLogic;
+import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.metatileentity.implementations.MTEBasicGenerator;
 import gregtech.api.metatileentity.implementations.MTEHatch;
-import gregtech.api.metatileentity.implementations.MTEHatchInput;
 import gregtech.api.recipe.RecipeMap;
-import gregtech.api.recipe.RecipeMaps;
+
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
+import gregtech.api.recipe.maps.FuelBackend;
 import gregtech.api.render.TextureFactory;
-import gregtech.api.util.ExoticEnergyInputHelper;
+
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.api.util.shutdown.ShutDownReasonRegistry;
+import gregtech.common.tileentities.generators.MTEGasTurbine;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
-import mcp.mobius.waila.api.IWailaConfigHandler;
-import mcp.mobius.waila.api.IWailaDataAccessor;
-import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.StatCollector;
-import net.minecraft.world.World;
+
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import util.OriginManager;
 
 import javax.annotation.Nonnull;
-import java.util.List;
+
+import java.util.ArrayList;
+import java.util.Collection;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
-import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
-import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
-import static gregtech.api.enums.GTValues.VN;
+import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlockAnyMeta;
+import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlockUnlocalizedName;
+import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlocksTiered;
+import static gregtech.api.GregTechAPI.METATILEENTITIES;
+import static gregtech.api.enums.GTValues.V;
+
 import static gregtech.api.enums.HatchElement.Dynamo;
-import static gregtech.api.enums.HatchElement.InputBus;
 import static gregtech.api.enums.HatchElement.InputHatch;
-import static gregtech.api.enums.HatchElement.Maintenance;
-import static gregtech.api.enums.HatchElement.OutputHatch;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_GLOW;
-import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
-import static gregtech.api.util.GTRecipeConstants.LNG_BASIC_OUTPUT;
+
+import static gregtech.api.enums.HatchElement.Muffler;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_ACTIVE;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_ACTIVE_GLOW;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_GLOW;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static gregtech.api.util.GTStructureUtility.ofFrame;
+
 import static gregtech.api.util.GTUtility.validMTEList;
-import static gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase.GTPPHatchElement.TTDynamo;
+import static net.minecraft.init.Blocks.iron_bars;
+import static net.minecraft.util.StatCollector.translateToLocalFormatted;
 
-public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConstructable, IWirelessEnergyHatchInformation {
-
-    protected IStructureDefinition<Origin> STRUCTURE_DEFINITION = null;
-    private static final String STRUCTURE_PIECE_MAIN = "main";
-
-    @Override
-    public IStructureDefinition<Origin> getStructureDefinition() {
-        if (STRUCTURE_DEFINITION == null) {
-            STRUCTURE_DEFINITION = StructureDefinition.<Origin>builder()
-                .addShape(
-                    STRUCTURE_PIECE_MAIN,
-                    transpose(new String[][] {
-                        { "hhh", "hhh", "hhh" },
-                        { "h~h", "h-h", "hhh" },
-                        { "hhh", "hhh", "hhh" } }))
-                .addElement(
-                    'h',
-                    buildHatchAdder(Origin.class)
-                        .atLeast(InputHatch, OutputHatch, Maintenance, Dynamo.or(TTDynamo))
-                        .casingIndex(
-                            Textures.BlockIcons.getTextureIndex(
-                                Textures.BlockIcons.getCasingTextureForId(
-                                    GTUtility.getCasingTextureIndex(
-                                        GregTechAPI.sBlockCasings4,1
-                                    )
-                                )
-                            )
-                        )
-                        .dot(1)
-                        .buildAndChain(onElementPass(Origin::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings4, 1))))
-                .build();
-        }
-        return STRUCTURE_DEFINITION;
-    }
-
-    // 获取机器类型
-    @Override
-    public String getMachineType() {
-        return "Origin";
-    }
-
-    // 获取最大平行配方
-    @Override
-    public int getMaxParallelRecipes() {
-        return 0;
-    }
-
-
-    private int mCasingAmount;
-    private int mCasingIndex = Textures.BlockIcons.getTextureIndex(Textures.BlockIcons.getCasingTextureForId(
-            GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings4,1)));
-
-    private RecipeMap<?> mLastRecipeMap;
-    private ItemStack lastControllerStack;
-    private int tTier = 0;
-
-    private int power = 0;
-
-    protected long leftEnergy = 0;
-    protected FluidStack lockedFluid = null;
-    protected int times = 1;
-    protected int basicOutput;
-
-    private void onCasingAdded() {
-        mCasingAmount++;
-    }
+public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConstructable {
 
     public Origin(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -138,192 +83,282 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
         super(aName);
     }
 
+    private long tFuel = 0;
+    private long tEu = 0;
+
     @Override
-    public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
-        return new Origin(this.mName);
+    public void saveNBTData(NBTTagCompound aNBT) {
+        super.saveNBTData(aNBT);
+        aNBT.setLong("tFule",tFuel);
+        aNBT.setLong("tEu",tEu);
     }
 
     @Override
-    public MultiblockTooltipBuilder createTooltip() {
-        final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Origin")
-            .addInfo("Runs supplied machines as if placed in the world")
-            .addInfo("Parallel quantity = 2^x")
-            .addInfo("x = Number of machines in the controller")
-            .addInfo("If the machine within the controller contains multiple modes,")
-            .addInfo("sneak left click controller to switch machine mode")
-            .addSeparator()
-            .beginStructureBlock(3, 3, 3, true)
-            .addController("Front center")
-            .addCasingInfoRange("Clean Stainless Steel Machine Casing", 14, 24, false)
-            .addEnergyHatch("Any casing", 1)
-            .addMaintenanceHatch("Any casing", 1)
-            .addInputBus("Any casing", 1)
-            .addInputHatch("Any casing", 1)
-            .addOutputBus("Any casing", 1)
-            .addOutputHatch("Any casing", 1)
-            .toolTipFinisher();
-        return tt;
+    public void loadNBTData(NBTTagCompound aNBT) {
+        super.saveNBTData(aNBT);
+        this.tFuel = aNBT.getLong("tFule");
+        this.tEu = aNBT.getLong("tEu");
     }
 
-    @Override
-    public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
-                                 int colorIndex, boolean aActive, boolean redstoneLevel) {
-        if (side == aFacing) {
-            if (aActive) {
-                return new ITexture[] { casingTexturePages[0][mCasingIndex], TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE)
-                    .extFacing()
-                    .build(),
-                    TextureFactory.builder()
-                        .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW)
-                        .extFacing()
-                        .glow()
-                        .build() };
-            }
-            return new ITexture[] { casingTexturePages[0][mCasingIndex], TextureFactory.builder()
-                .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY)
-                .extFacing()
-                .build(),
-                TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_GLOW)
-                    .extFacing()
-                    .glow()
-                    .build() };
-        }
-        return new ITexture[] { casingTexturePages[0][mCasingIndex] };
-    }
-
-    @Override
-    public RecipeMap<?> getRecipeMap() {
-        //return RecipeMaps.gasTurbineFuels;
-        return mLastRecipeMap;
-    }
-
-    @Override
-    protected boolean filtersFluid() {
-        return false;
-    }
-
-    @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return aStack != null && aStack.getUnlocalizedName()
-            .startsWith("gt.blockmachines.");
-    }
-
-    @Override
-    protected void sendStartMultiBlockSoundLoop() {
-        SoundResource sound = OriginManager.getSoundResource(OriginManager.getMachineName(getControllerSlot()));
-        if (sound != null) {
-            sendLoopStart((byte) sound.id);
-        }
-    }
-
-    @Override
-    public void startSoundLoop(byte aIndex, double aX, double aY, double aZ) {
-        super.startSoundLoop(aIndex, aX, aY, aZ);
-        SoundResource sound = SoundResource.get(aIndex < 0 ? aIndex + 256 : 0);
-        if (sound != null) {
-            GTUtility.doSoundAtClient(sound, getTimeBetweenProcessSounds(), 1.0F, aX, aY, aZ);
-        }
-    }
-
-    @Override
-    public @NotNull CheckRecipeResult checkProcessing() {
-        setEnergyUsage(processingLogic);
-        return super.checkProcessing();
-    }
-
+    private ItemStack InputItemStack;
+    private FluidStack InputFluidStack;
 
     // 机器运行逻辑
     @Override
     protected ProcessingLogic createProcessingLogic() {
-        return new ProcessingLogic() {
+        return new ProcessingLogic().setMaxParallelSupplier(this::getMaxParallelRecipes);
+    }
 
-            @Nonnull
-            @Override
-            protected CheckRecipeResult validateRecipe(@Nonnull GTRecipe recipe) {
-                /*
-                power = recipe.getMetadataOrDefault(LNG_BASIC_OUTPUT, 0);
-                if (power == 65536) {
-                    return CheckRecipeResultRegistry.GENERATING;
-                } else {
-                    return CheckRecipeResultRegistry.NO_FUEL_FOUND;
+    @Nonnull
+    @Override
+
+    public CheckRecipeResult checkProcessing() {
+        ItemStack slot = getControllerSlot();
+        mMaxProgresstime = 0;
+        int Voltage = 0;
+        long lFuel;
+        if (slot != null){
+            MetaTileEntity tile = (MetaTileEntity) METATILEENTITIES[slot.getItemDamage()];
+            if (tile instanceof  MTEBasicGenerator generator){
+                GTRecipe recipe = getFluidRecipe(generator,getStoredFluids());
+                if (recipe != null){
+                    lFuel = (long) recipe.mSpecialValue * generator.getEfficiency();
+                    Voltage = (int) V[generator.mTier];
+                    FluidStack stack = recipe.getRepresentativeFluidInput(0);
+                    if (stack == null){
+                        ItemStack itemStack = recipe.getRepresentativeInput(0);
+                        if (!GTUtility.isStackValid(itemStack)){
+                           InputFluidStack = GTUtility.getFluidForFilledItem(itemStack, true);
+                            if (InputFluidStack != null){
+                                tFuel = lFuel;
+                                mMaxProgresstime = 1;
+                            }
+                        }
+                    }
+                }else{
+                    recipe = getItemRecipe(generator,getAllStoredInputs());
+                    if (recipe != null){
+                        lFuel = (long) recipe.mSpecialValue * generator.getEfficiency();
+                        Voltage = (int) V[generator.mTier];
+                        InputItemStack = recipe.getRepresentativeInput(0);
+                        tFuel = lFuel;
+                        mMaxProgresstime = 1;
+                    }
                 }
-
-                 */
-                return CheckRecipeResultRegistry.GENERATING;
-            }
-        };
-    }
-
-    @Override
-    protected void setEnergyUsage(ProcessingLogic processingLogic) {
-        lEUt = power;
-    }
-
-    @Override
-    protected boolean canUseControllerSlotForRecipe() {
-        return false;
-    }
-
-    // 并行数目
-    private int getMaxParallel() {
-        if (getControllerSlot() == null) {
-            return 1;
-        }
-        if (getControllerSlot().stackSize < 31) {
-            return (int) Math.pow(2, getControllerSlot().stackSize);
-        } else {
-            return Integer.MAX_VALUE;
-        }
-    }
-
-    //更新输入仓recipemap
-    @Override
-    public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
-        super.onPostTick(aBaseMetaTileEntity, aTick);
-        if (mMachine && aTick % 20 == 0) {
-            for (MTEHatchInput tInputHatch : mInputHatches) {
-                tInputHatch.mRecipeMap = mLastRecipeMap;
             }
         }
+        if (mMaxProgresstime > 0) {
+            lEUt = (long) Voltage * getMaxParallelRecipes();
+            return CheckRecipeResultRegistry.GENERATING;
+        }
+        return CheckRecipeResultRegistry.NO_RECIPE;
     }
 
-    //创造模式自动搭建
+    public GTRecipe getFluidRecipe(MTEBasicGenerator generator,ArrayList<FluidStack> FluidStackList) {
+            RecipeMap<?> tRecipes = generator.getRecipeMap();
+            if (!(FluidStackList.isEmpty() || !(tRecipes.getBackend() instanceof FuelBackend tFuels))) {
+                for (var fluidStack : FluidStackList){
+                return tFuels.findFuel(fluidStack);
+                }
+            }
+
+        return null;
+    }
+
+    public GTRecipe getItemRecipe(MTEBasicGenerator generator,ArrayList<ItemStack> ItemStacks) {
+        RecipeMap<?> tRecipes = generator.getRecipeMap();
+        if (!ItemStacks.isEmpty() || getRecipeMap() == null){
+            for (var itemStack : ItemStacks){
+                if (!(GTUtility.isStackInvalid(itemStack)) && generator.solidFuelOverride(itemStack)){
+                    return getRecipeMap().findRecipeQuery()
+                        .items(itemStack)
+                        .find();
+                }
+            }
+        }
+        return null;
+    }
+
+    @NotNull
     @Override
-    public void construct(ItemStack aStack, boolean aHintsOnly) {
-        buildPiece(STRUCTURE_PIECE_MAIN, aStack, aHintsOnly, 1, 1, 0);
+    public Collection<RecipeMap<?>> getAvailableRecipeMaps() {
+        return super.getAvailableRecipeMaps();
     }
 
-    //生存模式自动搭建
+    @Override
+    public String getMachineType() {
+        return "";
+    }
+
+    @Override
+    public int getMaxParallelRecipes() {
+        var itemStack = getControllerSlot();
+        if (!GTUtility.isStackInvalid(itemStack)){
+        return getControllerSlot().stackSize;
+        }
+        return  0;
+    }
+
+    private static final String STRUCTURE_PIECE_MAIN = "main";
+    private static String[][] Shape =  new String[][] { { "   B   ", "  BBB  ", "  BBB  ", "BHBBBHB", "BBB~BBB" },
+        { "  FFF  ", " FBBBF ", " FBCBF ", "HFBBBFH", "BDDDDDB" },
+        { "  AFA  ", " AEEEA ", " AECEA ", "HFEEEFH", "BDDDDDB" },
+        { "  AFA  ", " A G A ", " AG GA ", "HF G FH", "BDDDDDB" },
+        { "  AFA  ", " A G A ", " AG GA ", "HF G FH", "BDDDDDB" },
+        { "  AFA  ", " AEEEA ", " AECEA ", "HFEEEFH", "BDDDDDB" },
+        { "  FFF  ", " FBBBF ", " FBCBF ", "HFBBBFH", "BDDDDDB" },
+        { "  BBB  ", " BBCBB ", " BCCCB ", "BBCCCBB", "BBBBBBB" }};
+
+    @Override
+    public void construct(ItemStack itemStack, boolean b) {
+        buildPiece(STRUCTURE_PIECE_MAIN, itemStack, b, 3, 4, 0);
+    }
+
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
-        if (mMachine) {
-            return -1;
+        if (mMachine) return -1;
+        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 3, 4, 0, elementBudget, env, false, true);
+    }
+
+    private static final ITexture SOLID_STEEL_MACHINE_CASING = Textures.BlockIcons
+        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0));
+    private static IStructureDefinition<Origin> STRUCTURE_DEFINITION = null;
+    private int mBlockTier = 0;
+
+    @Override
+    public IStructureDefinition<Origin> getStructureDefinition() {
+        if (STRUCTURE_DEFINITION == null) {
+            STRUCTURE_DEFINITION = StructureDefinition.<Origin>builder()
+                .addShape(
+                    STRUCTURE_PIECE_MAIN, Shape)
+                .addElement('A', ofBlockUnlocalizedName("IC2", "blockAlloyGlass", 0, true))
+                //
+                .addElement(
+                    'B',
+                    buildHatchAdder(Origin.class).atLeast(Dynamo, InputHatch, Muffler)
+                        .casingIndex(Textures.BlockIcons.getTextureIndex(SOLID_STEEL_MACHINE_CASING))
+                        .dot(1)
+                        .buildAndChain(GregTechAPI.sBlockCasings2, 0))
+                .addElement('C', ofBlock(GregTechAPI.sBlockCasings2, 13))
+                .addElement('D', ofBlock(GregTechAPI.sBlockCasings4, 1))
+                .addElement('E', ofBlock(GregTechAPI.sBlockCasings5, 0))
+                .addElement('F', ofFrame(Materials.StainlessSteel))
+                .addElement(
+                    'G',
+                    ofBlocksTiered(
+                        Origin::getTierOfBlock,
+                        ImmutableList.of(
+                            Pair.of(BlockList.BronzePlatedReinforcedStone.getBlock(), 0), // 三硝基甲苯HV
+                            Pair.of(BlockList.SteelPlatedReinforcedStone.getBlock(), 0), // PETN EV
+                            Pair.of(BlockList.TitaniumPlatedReinforcedStone.getBlock(), 0), // 硝化甘油 IV
+                            Pair.of(BlockList.TungstensteelPlatedReinforcedStone.getBlock(), 0), // 奥克托今 LUV
+                            Pair.of(BlockList.NaquadahPlatedReinforcedStone.getBlock(), 0)// CL-20 ZPM
+                        ),
+                        0,
+                        (m, t) -> m.mBlockTier = t,
+                        m -> m.mBlockTier))
+                .addElement('H', ofBlockAnyMeta(iron_bars))
+                .build();
         }
-        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 1, 1, 0, elementBudget, env, false, true);
+        return STRUCTURE_DEFINITION;
     }
 
-    private boolean checkHatches() {
-        return mMaintenanceHatches.size() == 1;
+    public static int getTierOfBlock(Block block, int meta) {
+        if (block == BlockList.BronzePlatedReinforcedStone.getBlock()) {
+            return 1;
+        } else if (block == BlockList.SteelPlatedReinforcedStone.getBlock()) {
+            return 2;
+        } else if (block == BlockList.TitaniumPlatedReinforcedStone.getBlock()) {
+            return 3;
+        } else if (block == BlockList.TungstensteelPlatedReinforcedStone.getBlock()) {
+            return 4;
+        } else if (block == BlockList.NaquadahPlatedReinforcedStone.getBlock()) {
+            return 5;
+        }
+        return 0;
     }
 
-    //能量输出
+    @Override
+    protected MultiblockTooltipBuilder createTooltip() {
+        final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
+        tt.addMachineType(translateToLocalFormatted("mte.ImplosionGenerator"))
+            .addInfo(translateToLocalFormatted("mte.ImplosionGenerator.tooltips1"))
+            .addInfo(translateToLocalFormatted("mte.ImplosionGenerator.tooltips2"))
+            .addInfo(translateToLocalFormatted("mte.ImplosionGenerator.tooltips3"))
+            .beginStructureBlock(7, 5, 8, true)
+            .addController("Front bottom")
+            .addInputHatch("Hint block with dot 1")
+            .addDynamoHatch("Hint block with dot 1")
+            .addMufflerHatch("Hint block with dot 1")
+            .toolTipFinisher();
+
+        return tt;
+    }
+
+    private int getFluidStackAmount(FluidStack fluidStack){
+        ArrayList<FluidStack> fluidStacks = getStoredFluids();
+        int amount = 0;
+        for (var fluid : fluidStacks){
+           if (GTUtility.areFluidsEqual(fluidStack,fluid)){
+               amount += fluid.amount;
+           }
+        }
+        return amount;
+    }
+
+    private int getItemStackAmount(ItemStack itemStack){
+        ArrayList<ItemStack> itemStacks = getAllStoredInputs();
+        int amount = 0;
+        for (var item : itemStacks){
+            if (GTUtility.areStacksEqual(itemStack,item)){
+                amount += item.stackSize;
+            }
+        }
+    }
+
+    @Override
+    public boolean onRunningTick(ItemStack aStack) {
+        if (this.lEUt > 0) {
+
+            int amount = (int) (lEUt / tFuel);
+            if (!GTUtility.isStackValid(InputItemStack)){
+                InputItemStack.stackSize = Math.min(amount,getItemStackAmount(InputItemStack));
+                return depleteInput(InputItemStack) && addEnergyOutput(this.lEUt);
+               // depleteInput()
+            }else if (InputFluidStack != null){
+                InputFluidStack.amount = Math.min(amount,getFluidStackAmount(InputFluidStack));
+                return depleteInput(InputFluidStack) && addEnergyOutput(this.lEUt);
+            }
+            if (tEu > 0){
+                if (mProgresstime > 0){
+                    --mProgresstime;
+                }
+            }
+            return true;
+        }
+        if (this.lEUt < 0) {
+            if (!drainEnergyInput(getActualEnergyUsage())) {
+                stopMachine(ShutDownReasonRegistry.POWER_LOSS);
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public boolean addEnergyOutput(long aEU) {
         if (aEU <= 0) {
             return true;
         }
         if (!this.mAllDynamoHatches.isEmpty()) {
-            return addEnergyOutputMultipleDynamos(aEU, true);
+            tEu -= aEU;
+            long eu = addEnergyOutputMultipleDynamos(aEU, true,0);
+            if (eu > 0) tEu += eu;
         }
-        return false;
+        return null;
     }
 
-    //能量输出到动力仓
-    @Override
-    public boolean addEnergyOutputMultipleDynamos(long aEU, boolean aAllowMixedVoltageDynamos) {
+    public long addEnergyOutputMultipleDynamos(long aEU, boolean aAllowMixedVoltageDynamos,int i) {
         int injected = 0;
         long aFirstVoltageFound = -1;
         for (MTEHatch aDynamo : validMTEList(mAllDynamoHatches)) {
@@ -349,7 +384,7 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
             // add full amps
             aDynamo.getBaseMetaTileEntity()
                 .increaseStoredEnergyUnits(aVoltage * ampsOnCurrentHatch, false);
-            injected += aVoltage * ampsOnCurrentHatch;
+            injected += (int) (aVoltage * ampsOnCurrentHatch);
 
             // add reminder
             if (aRemainder > 0 && ampsOnCurrentHatch < aDynamo.maxAmperesOut()) {
@@ -358,207 +393,58 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
                 injected += aRemainder;
             }
         }
-        return injected > 0;
-    }
-
-    @Override
-    public void saveNBTData(NBTTagCompound aNBT) {
-        this.times = aNBT.getInteger("mTimes");
-        this.leftEnergy = aNBT.getLong("mLeftEnergy");
-        this.basicOutput = aNBT.getInteger("mbasicOutput");
-        if (FluidRegistry.getFluid(aNBT.getString("mLockedFluidName")) != null) this.lockedFluid = new FluidStack(
-            FluidRegistry.getFluid(aNBT.getString("mLockedFluidName")),
-            aNBT.getInteger("mLockedFluidAmount"));
-        else this.lockedFluid = null;
-        super.loadNBTData(aNBT);
-    }
-
-    @Override
-    public void loadNBTData(final NBTTagCompound aNBT) {
-        aNBT.setInteger("mTimes", this.times);
-        aNBT.setLong("mLeftEnergy", this.leftEnergy);
-        aNBT.setInteger("mbasicOutput", this.basicOutput);
-        if (lockedFluid != null) {
-            aNBT.setString(
-                "mLockedFluidName",
-                this.lockedFluid.getFluid()
-                    .getName());
-            aNBT.setInteger("mLockedFluidAmount", this.lockedFluid.amount);
+        if (injected > 0){
+            return aEU - injected;
+        }else if (injected == aEU){
+            return 0;
         }
-        super.saveNBTData(aNBT);
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
-    }
-
-    private List<IHatchElement<? super Origin>> getAllowedHatches() {
-        return ImmutableList.of(InputHatch, OutputHatch, InputBus, Maintenance, Dynamo, TTDynamo);
+        return aEU;
     }
 
     @Override
     public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
-        mCasingAmount = 0;
-        return checkPiece(STRUCTURE_PIECE_MAIN, 1, 1, 0) && mCasingAmount >= 14 && checkHatches();
-    }
-
-    //机器详细运行数据
-    @Override
-    public String[] getInfoData() {
-        long storedEnergy = 0;
-        long maxEnergy = 0;
-        for (MTEHatch tHatch : validMTEList(mExoticEnergyHatches)) {
-            storedEnergy += tHatch.getBaseMetaTileEntity()
-                .getStoredEU();
-            maxEnergy += tHatch.getBaseMetaTileEntity()
-                .getEUCapacity();
+        if (checkPiece(STRUCTURE_PIECE_MAIN, 3, 4, 0) && mMufflerHatches.size() == 1) {
+            fixAllIssues();
+            return true;
         }
-        return new String[] {
-            StatCollector.translateToLocal("GT5U.multiblock.Progress") + ": "
-                + EnumChatFormatting.GREEN
-                + GTUtility.formatNumbers(mProgresstime / 20)
-                + EnumChatFormatting.RESET
-                + " s / "
-                + EnumChatFormatting.YELLOW
-                + GTUtility.formatNumbers(mMaxProgresstime / 20)
-                + EnumChatFormatting.RESET
-                + " s",
-            StatCollector.translateToLocal("GT5U.multiblock.energy") + ": "
-                + EnumChatFormatting.GREEN
-                + GTUtility.formatNumbers(storedEnergy)
-                + EnumChatFormatting.RESET
-                + " EU / "
-                + EnumChatFormatting.YELLOW
-                + GTUtility.formatNumbers(maxEnergy)
-                + EnumChatFormatting.RESET
-                + " EU",
-            StatCollector.translateToLocal("GT5U.multiblock.usage") + ": "
-                + EnumChatFormatting.RED
-                + GTUtility.formatNumbers(-lEUt)
-                + EnumChatFormatting.RESET
-                + " EU/t",
-            StatCollector.translateToLocal("GT5U.multiblock.mei") + ": "
-                + EnumChatFormatting.YELLOW
-                + GTUtility
-                .formatNumbers(ExoticEnergyInputHelper.getMaxInputVoltageMulti(getExoticAndNormalEnergyHatchList()))
-                + EnumChatFormatting.RESET
-                + " EU/t(*"
-                + GTUtility
-                .formatNumbers(ExoticEnergyInputHelper.getMaxInputAmpsMulti(getExoticAndNormalEnergyHatchList()))
-                + "A) "
-                + StatCollector.translateToLocal("GT5U.machines.tier")
-                + ": "
-                + EnumChatFormatting.YELLOW
-                + VN[GTUtility
-                .getTier(ExoticEnergyInputHelper.getMaxInputVoltageMulti(getExoticAndNormalEnergyHatchList()))]
-                + EnumChatFormatting.RESET,
-            StatCollector.translateToLocal("GT5U.multiblock.problems") + ": "
-                + EnumChatFormatting.RED
-                + (getIdealStatus() - getRepairStatus())
-                + EnumChatFormatting.RESET
-                + " "
-                + StatCollector.translateToLocal("GT5U.multiblock.efficiency")
-                + ": "
-                + EnumChatFormatting.YELLOW
-                + mEfficiency / 100.0F
-                + EnumChatFormatting.RESET
-                + " %",
-            StatCollector.translateToLocal("GT5U.Origin.machinetier") + ": "
-                + EnumChatFormatting.GREEN
-                + tTier
-                + EnumChatFormatting.RESET
-                + " "
-                + StatCollector.translateToLocal("GT5U.Origin.discount")
-                + ": "
-                + EnumChatFormatting.GREEN
-                + 1
-                + EnumChatFormatting.RESET
-                + " x",
-            StatCollector.translateToLocal("GT5U.Origin.parallel") + ": "
-                + EnumChatFormatting.GREEN
-                + GTUtility.formatNumbers(getMaxParallel())
-                + EnumChatFormatting.RESET };
+        return false;
     }
 
     @Override
-    public boolean supportsInputSeparation() {
-        return true;
+    public int getMaxEfficiency(ItemStack aStack) {
+        return 0;
     }
 
     @Override
-    public boolean supportsBatchMode() {
-        return true;
-    }
+    public ITexture[] getTexture(IGregTechTileEntity te, ForgeDirection side, ForgeDirection facing, int colorIndex,
+                                 boolean active, boolean redstone) {
 
-    @Override
-    public boolean supportsSingleRecipeLocking() {
-        return true;
-    }
-
-    @Override
-    public boolean supportsVoidProtection() {
-        return true;
-    }
-
-    @Override
-    protected boolean supportsSlotAutomation(int aSlot) {
-        return aSlot == getControllerSlotIndex();
-    }
-
-    @Override
-    public void getWailaNBTData(EntityPlayerMP player, TileEntity tile, NBTTagCompound tag, World world, int x, int y,
-                                int z) {
-        super.getWailaNBTData(player, tile, tag, world, x, y, z);
-        if (mLastRecipeMap != null && getControllerSlot() != null) {
-            tag.setString("type", getControllerSlot().getDisplayName());
+        if (side == facing) {
+            if (active) return new ITexture[] { SOLID_STEEL_MACHINE_CASING, TextureFactory.builder()
+                .addIcon(OVERLAY_FRONT_OIL_CRACKER_ACTIVE)
+                .extFacing()
+                .build(),
+                TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_OIL_CRACKER_ACTIVE_GLOW)
+                    .extFacing()
+                    .glow()
+                    .build() };
+            return new ITexture[] { SOLID_STEEL_MACHINE_CASING, TextureFactory.builder()
+                .addIcon(OVERLAY_FRONT_OIL_CRACKER)
+                .extFacing()
+                .build(),
+                TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_OIL_CRACKER_GLOW)
+                    .extFacing()
+                    .glow()
+                    .build() };
         }
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0)) };
     }
 
     @Override
-    public void getWailaBody(ItemStack itemStack, List<String> currentTip, IWailaDataAccessor accessor,
-                             IWailaConfigHandler config) {
-        super.getWailaBody(itemStack, currentTip, accessor, config);
-        final NBTTagCompound tag = accessor.getNBTData();
-        if (tag.hasKey("type")) {
-            currentTip.add("Machine: " + EnumChatFormatting.YELLOW + tag.getString("type"));
-        } else {
-            currentTip.add("Machine: " + EnumChatFormatting.YELLOW + "None");
-        }
+    public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
+        return new Origin(this.mName);
     }
-
-    // 读取通常大机器配方
-    private RecipeMap<?> fetchRecipeMap() {
-        if (isCorrectMachinePart(getControllerSlot())) {
-            getControllerSlot().getItemDamage();
-            RecipeMap<?> RecipeMap = getMultifunctionalRecipeMap(getControllerSlot().getItemDamage());
-            if (RecipeMap != null) {
-                return RecipeMap;
-            }
-        }
-        return null;
-    }
-
-    // 读取机器的配方
-    private RecipeMap<?> getMultifunctionalRecipeMap(int meta) {
-        switch (meta) {
-            case 1119 -> {
-                return RecipeMaps.gasTurbineFuels;
-            }
-            default -> {
-                return null;
-            }
-        }
-    }
-
 }

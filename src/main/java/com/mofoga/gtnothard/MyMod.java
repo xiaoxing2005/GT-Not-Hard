@@ -1,5 +1,6 @@
 package com.mofoga.gtnothard;
 
+import static com.gtnewhorizon.structurelib.StructureLibAPI.setDebugEnabled;
 import static loader.MachinesLoader.loaderMachines;
 
 import org.apache.logging.log4j.LogManager;
@@ -23,6 +24,10 @@ public class MyMod {
 
     @SidedProxy(clientSide = "com.mofoga.gtnothard.ClientProxy", serverSide = "com.mofoga.gtnothard.CommonProxy")
     public static CommonProxy proxy;
+
+    static {
+        setDebugEnabled(true);
+    }
 
     @Mod.EventHandler
     // preInit "Run before anything else. Read your config, create blocks, items, etc, and register them with the
