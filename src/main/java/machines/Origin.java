@@ -1,46 +1,5 @@
 package machines;
 
-import com.dreammaster.block.BlockList;
-import com.google.common.collect.ImmutableList;
-import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
-import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
-import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
-import com.gtnewhorizon.structurelib.structure.StructureDefinition;
-import gregtech.api.GregTechAPI;
-import gregtech.api.enums.Materials;
-import gregtech.api.enums.Textures;
-import gregtech.api.interfaces.ITexture;
-import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
-import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.logic.ProcessingLogic;
-import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.implementations.MTEBasicGenerator;
-import gregtech.api.metatileentity.implementations.MTEHatch;
-import gregtech.api.recipe.RecipeMap;
-import gregtech.api.recipe.check.CheckRecipeResult;
-import gregtech.api.recipe.check.CheckRecipeResultRegistry;
-import gregtech.api.recipe.maps.FuelBackend;
-import gregtech.api.render.TextureFactory;
-import gregtech.api.util.GTRecipe;
-import gregtech.api.util.GTUtility;
-import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.api.util.shutdown.ShutDownReasonRegistry;
-import gregtech.common.tileentities.generators.MTEGasTurbine;
-import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
-import net.minecraft.block.Block;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraftforge.common.util.ForgeDirection;
-import net.minecraftforge.fluids.FluidStack;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.jetbrains.annotations.NotNull;
-
-import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.Collection;
-
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlockAnyMeta;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlockUnlocalizedName;
@@ -60,7 +19,49 @@ import static gregtech.api.util.GTUtility.validMTEList;
 import static net.minecraft.init.Blocks.iron_bars;
 import static net.minecraft.util.StatCollector.translateToLocalFormatted;
 
-public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConstructable {
+import java.util.ArrayList;
+import java.util.Collection;
+
+import javax.annotation.Nonnull;
+
+import net.minecraft.block.Block;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.fluids.FluidStack;
+
+import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.NotNull;
+
+import com.dreammaster.block.BlockList;
+import com.google.common.collect.ImmutableList;
+import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
+import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
+import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
+import com.gtnewhorizon.structurelib.structure.StructureDefinition;
+
+import gregtech.api.GregTechAPI;
+import gregtech.api.enums.Materials;
+import gregtech.api.enums.Textures;
+import gregtech.api.interfaces.ISecondaryDescribable;
+import gregtech.api.interfaces.ITexture;
+import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
+import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
+import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.metatileentity.implementations.MTEBasicGenerator;
+import gregtech.api.metatileentity.implementations.MTEHatch;
+import gregtech.api.recipe.RecipeMap;
+import gregtech.api.recipe.check.CheckRecipeResult;
+import gregtech.api.recipe.check.CheckRecipeResultRegistry;
+import gregtech.api.recipe.maps.FuelBackend;
+import gregtech.api.render.TextureFactory;
+import gregtech.api.util.GTRecipe;
+import gregtech.api.util.GTUtility;
+import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.api.util.shutdown.ShutDownReasonRegistry;
+import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
+
+public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConstructable, ISecondaryDescribable {
 
     public Origin(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -70,29 +71,22 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
         super(aName);
     }
 
-    private long tFuel = 0;
-    private long tEu = 0;
+    private GTRecipe recipe = null;
+    private int Efficiency = 0;
+    private int Voltage = 0;
 
     @Override
     public void saveNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
-        aNBT.setLong("tFule",tFuel);
-        aNBT.setLong("tEu",tEu);
+        // aNBT.setLong("tFule",tFuel);
+        // aNBT.setLong("tEu",tEu);
     }
 
     @Override
     public void loadNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
-        this.tFuel = aNBT.getLong("tFule");
-        this.tEu = aNBT.getLong("tEu");
-    }
-
-    private ItemStack InputItemStack;
-    private FluidStack InputFluidStack;
-
-    @Override
-    protected ProcessingLogic createProcessingLogic() {
-        return new ProcessingLogic().setMaxParallelSupplier(this::getMaxParallelRecipes);
+        // this.tFuel = aNBT.getLong("tFule");
+        // this.tEu = aNBT.getLong("tEu");
     }
 
     @Nonnull
@@ -100,61 +94,82 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
     public CheckRecipeResult checkProcessing() {
         ItemStack slot = getControllerSlot();
         mMaxProgresstime = 0;
-        int Voltage = 0;
-        long lFuel;
-        if (slot != null){
+        if (slot != null && recipe == null && Efficiency == 0 && Voltage == 0) {
             MetaTileEntity tile = (MetaTileEntity) METATILEENTITIES[slot.getItemDamage()];
-            if (tile instanceof  MTEBasicGenerator generator){
-                GTRecipe recipe = getFluidRecipe(generator,getStoredFluids());
-                if (recipe != null){
-                    lFuel = (long) recipe.mSpecialValue * generator.getEfficiency();
+            if (tile instanceof MTEBasicGenerator generator) {
+                GTRecipe recipe = getFluidRecipe(generator, getStoredFluids());
+                if (recipe != null) {
                     Voltage = (int) V[generator.mTier];
-                    FluidStack stack = recipe.getRepresentativeFluidInput(0);
-                    if (stack == null){
-                        ItemStack itemStack = recipe.getRepresentativeInput(0);
-                        if (!GTUtility.isStackValid(itemStack)){
-                           InputFluidStack = GTUtility.getFluidForFilledItem(itemStack, true);
-                            if (InputFluidStack != null){
-                                tFuel = lFuel;
-                                mMaxProgresstime = 1;
-                            }
-                        }
-                    }
-                }else{
-                    recipe = getItemRecipe(generator,getAllStoredInputs());
-                    if (recipe != null){
-                        lFuel = (long) recipe.mSpecialValue * generator.getEfficiency();
+                    Efficiency = generator.getEfficiency();
+                    this.recipe = recipe;
+                } else {
+                    recipe = getItemRecipe(generator, getAllStoredInputs());
+                    if (recipe != null) {
                         Voltage = (int) V[generator.mTier];
-                        InputItemStack = recipe.getRepresentativeInput(0);
-                        tFuel = lFuel;
-                        mMaxProgresstime = 1;
-                    }
+                        Efficiency = generator.getEfficiency();
+                        this.recipe = recipe;
+                    } else return CheckRecipeResultRegistry.NO_RECIPE;
                 }
             }
         }
-        if (mMaxProgresstime > 0) {
-            lEUt = (long) Voltage * getMaxParallelRecipes();
-            return CheckRecipeResultRegistry.GENERATING;
+        if (recipe != null) {
+            if (deleteInput(recipe, 100 * getMaxParallelRecipes())) {
+                mMaxProgresstime = 20;
+                lEUt = (long) Voltage * getMaxParallelRecipes();
+                mEfficiency = Efficiency;
+                return CheckRecipeResultRegistry.GENERATING;
+            } else recipe = null;
+            Efficiency = 0;
+            Voltage = 0;
         }
+
         return CheckRecipeResultRegistry.NO_RECIPE;
     }
 
-    public GTRecipe getFluidRecipe(MTEBasicGenerator generator,ArrayList<FluidStack> FluidStackList) {
-            RecipeMap<?> tRecipes = generator.getRecipeMap();
-            if (!(FluidStackList.isEmpty() || !(tRecipes.getBackend() instanceof FuelBackend tFuels))) {
-                for (var fluidStack : FluidStackList){
-                return tFuels.findFuel(fluidStack);
+    private boolean deleteInput(GTRecipe recipe, int amount) {
+        FluidStack fluidStack = null;
+        if (recipe != null) {
+            ItemStack input = recipe.getRepresentativeInput(0);
+            if (GTUtility.isStackValid(input)) {
+                fluidStack = GTUtility.getFluidForFilledItem(input, true);
+            } else fluidStack = recipe.getRepresentativeFluidInput(0);
+        }
+        ArrayList<FluidStack> fluidStacks = getStoredFluids();
+        int i = getMaxFluidAmount(fluidStacks);
+        if (i >= amount) {
+            for (var stack : fluidStacks) {
+                if (GTUtility.areFluidsEqual(stack, fluidStack)) {
+                    stack.amount -= amount;
+                    return true;
                 }
             }
+        }
+        return false;
+    }
 
+    private int getMaxFluidAmount(ArrayList<FluidStack> fluidStacks) {
+        int i = 0;
+        for (var stack : fluidStacks) {
+            i += stack.amount;
+        }
+        return i;
+    }
+
+    public GTRecipe getFluidRecipe(MTEBasicGenerator generator, ArrayList<FluidStack> FluidStackList) {
+        RecipeMap<?> tRecipes = generator.getRecipeMap();
+        if (!(FluidStackList.isEmpty() || !(tRecipes.getBackend() instanceof FuelBackend tFuels))) {
+            for (var fluidStack : FluidStackList) {
+                return tFuels.findFuel(fluidStack);
+            }
+        }
         return null;
     }
 
-    public GTRecipe getItemRecipe(MTEBasicGenerator generator,ArrayList<ItemStack> ItemStacks) {
+    public GTRecipe getItemRecipe(MTEBasicGenerator generator, ArrayList<ItemStack> ItemStacks) {
         RecipeMap<?> tRecipes = generator.getRecipeMap();
-        if (!ItemStacks.isEmpty() || getRecipeMap() == null){
-            for (var itemStack : ItemStacks){
-                if (!(GTUtility.isStackInvalid(itemStack)) && generator.solidFuelOverride(itemStack)){
+        if (!ItemStacks.isEmpty() || getRecipeMap() == null) {
+            for (var itemStack : ItemStacks) {
+                if (!(GTUtility.isStackInvalid(itemStack)) && generator.solidFuelOverride(itemStack)) {
                     return getRecipeMap().findRecipeQuery()
                         .items(itemStack)
                         .find();
@@ -178,21 +193,21 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
     @Override
     public int getMaxParallelRecipes() {
         var itemStack = getControllerSlot();
-        if (!GTUtility.isStackInvalid(itemStack)){
-        return getControllerSlot().stackSize;
+        if (!GTUtility.isStackInvalid(itemStack)) {
+            return getControllerSlot().stackSize;
         }
-        return  0;
+        return 0;
     }
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
-    private static String[][] Shape =  new String[][] { { "   B   ", "  BBB  ", "  BBB  ", "BHBBBHB", "BBB~BBB" },
+    private static String[][] Shape = new String[][] { { "   B   ", "  BBB  ", "  BBB  ", "BHBBBHB", "BBB~BBB" },
         { "  FFF  ", " FBBBF ", " FBCBF ", "HFBBBFH", "BDDDDDB" },
         { "  AFA  ", " AEEEA ", " AECEA ", "HFEEEFH", "BDDDDDB" },
         { "  AFA  ", " A G A ", " AG GA ", "HF G FH", "BDDDDDB" },
         { "  AFA  ", " A G A ", " AG GA ", "HF G FH", "BDDDDDB" },
         { "  AFA  ", " AEEEA ", " AECEA ", "HFEEEFH", "BDDDDDB" },
         { "  FFF  ", " FBBBF ", " FBCBF ", "HFBBBFH", "BDDDDDB" },
-        { "  BBB  ", " BBCBB ", " BCCCB ", "BBCCCBB", "BBBBBBB" }};
+        { "  BBB  ", " BBCBB ", " BCCCB ", "BBCCCBB", "BBBBBBB" } };
 
     @Override
     public void construct(ItemStack itemStack, boolean b) {
@@ -214,8 +229,7 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
     public IStructureDefinition<Origin> getStructureDefinition() {
         if (STRUCTURE_DEFINITION == null) {
             STRUCTURE_DEFINITION = StructureDefinition.<Origin>builder()
-                .addShape(
-                    STRUCTURE_PIECE_MAIN, Shape)
+                .addShape(STRUCTURE_PIECE_MAIN, Shape)
                 .addElement('A', ofBlockUnlocalizedName("IC2", "blockAlloyGlass", 0, true))
                 //
                 .addElement(
@@ -280,45 +294,10 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
         return tt;
     }
 
-    private int getFluidStackAmount(FluidStack fluidStack){
-        ArrayList<FluidStack> fluidStacks = getStoredFluids();
-        int amount = 0;
-        for (var fluid : fluidStacks){
-           if (GTUtility.areFluidsEqual(fluidStack,fluid)){
-               amount += fluid.amount;
-           }
-        }
-        return amount;
-    }
-
-    private int getItemStackAmount(ItemStack itemStack){
-        ArrayList<ItemStack> itemStacks = getAllStoredInputs();
-        int amount = 0;
-        for (var item : itemStacks){
-            if (GTUtility.areStacksEqual(itemStack,item)){
-                amount += item.stackSize;
-            }
-        }
-    }
-
     @Override
     public boolean onRunningTick(ItemStack aStack) {
         if (this.lEUt > 0) {
-
-            int amount = (int) (lEUt / tFuel);
-            if (!GTUtility.isStackValid(InputItemStack)){
-                InputItemStack.stackSize = Math.min(amount,getItemStackAmount(InputItemStack));
-                return depleteInput(InputItemStack) && addEnergyOutput(this.lEUt);
-               // depleteInput()
-            }else if (InputFluidStack != null){
-                InputFluidStack.amount = Math.min(amount,getFluidStackAmount(InputFluidStack));
-                return depleteInput(InputFluidStack) && addEnergyOutput(this.lEUt);
-            }
-            if (tEu > 0){
-                if (mProgresstime > 0){
-                    --mProgresstime;
-                }
-            }
+            addEnergyOutput(this.lEUt * mEfficiency / 100);
             return true;
         }
         if (this.lEUt < 0) {
@@ -336,15 +315,13 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
             return true;
         }
         if (!this.mAllDynamoHatches.isEmpty()) {
-            tEu -= aEU;
-            long eu = addEnergyOutputMultipleDynamos(aEU, true,0);
-            if (eu > 0) tEu += eu;
+            return addEnergyOutputMultipleDynamos(aEU, true, 0);
+
         }
         return false;
     }
 
-
-    public long addEnergyOutputMultipleDynamos(long aEU, boolean aAllowMixedVoltageDynamos,int i) {
+    public boolean addEnergyOutputMultipleDynamos(long aEU, boolean aAllowMixedVoltageDynamos, int i) {
         int injected = 0;
         long aFirstVoltageFound = -1;
         for (MTEHatch aDynamo : validMTEList(mAllDynamoHatches)) {
@@ -379,12 +356,7 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
                 injected += aRemainder;
             }
         }
-        if (injected > 0){
-            return aEU - injected;
-        }else if (injected == aEU){
-            return 0;
-        }
-        return aEU;
+        return injected > 0;
     }
 
     @Override
@@ -403,7 +375,7 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity te, ForgeDirection side, ForgeDirection facing, int colorIndex,
-                                 boolean active, boolean redstone) {
+        boolean active, boolean redstone) {
 
         if (side == facing) {
             if (active) return new ITexture[] { SOLID_STEEL_MACHINE_CASING, TextureFactory.builder()
