@@ -18,12 +18,17 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
+import gregtech.api.metatileentity.implementations.MTEHatchInput;
+import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
 import gregtech.api.objects.XSTR;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.render.TextureFactory;
+import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.api.util.OverclockCalculator;
+import gregtech.api.util.ParallelHelper;
 import gregtech.api.util.shutdown.ShutDownReasonRegistry;
 import gtneioreplugin.plugin.block.BlockDimensionDisplay;
 import gtneioreplugin.util.DimensionHelper;
@@ -213,8 +218,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
 
     @Override
     public boolean isCorrectMachinePart(ItemStack aStack) {
-        return aStack != null && aStack.getUnlocalizedName()
-            .startsWith("gt.blockmachines.");
+        return aStack != null;
     }
 
     @Override
@@ -235,6 +239,11 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     @Override
     public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
         return new Singularity(this.mName);
+    }
+
+    @Override
+    public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
+        super.onPostTick(aBaseMetaTileEntity, aTick);
     }
 
     private boolean mBlacklist = false;
@@ -267,7 +276,10 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
             if (this.dropMap == null || this.totalWeight == 0) this.calculateDropMap();
 
             if (this.totalWeight != 0.f) {
-                this.handleOutputs();
+                int mLoop = 0;
+                for (mLoop = 0; mLoop < 16; mLoop++) {
+                    this.handleOutputs();
+                }
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             } else {
                 this.stopMachine(ShutDownReasonRegistry.NONE);
@@ -279,23 +291,6 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         }
         return CheckRecipeResultRegistry.NO_RECIPE;
     }
-
-    /*
-    @SubscribeEvent
-    public void getDimName(WorldEvent.Load mDemName) {
-        for(int i: DimensionManager.getStaticDimensionIDs()) {
-            if(dimMapping.containsKey(i)) {
-                continue;
-            }
-            String name = getNameForID(i);
-            int index;
-            if((index=dimName.indexOf(name))>=0){
-                dimMapping.forcePut(i, DimensionHelper.DimNameDisplayed[index]);
-            };
-        }
-    }
-
-     */
 
     public static String getNameForID(int id) {
         return	GalacticGregRegistry
@@ -316,7 +311,6 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     private VoidMinerUtility.DropMap dropMap = null;
     private VoidMinerUtility.DropMap extraDropMap = null;
     private float totalWeight;
-    private int multiplier = 1;
 
     //下一次产出矿石
     private ItemStack nextOre() {
@@ -392,7 +386,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
             .filter(GTUtility::isOre)
             .collect(Collectors.toList());
         final ItemStack output = this.nextOre();
-        output.stackSize = multiplier;
+        output.stackSize = getMaxParallel();
         if (inputOres.isEmpty() || this.mBlacklist && inputOres.stream()
             .noneMatch(is -> GTUtility.areStacksEqual(is, output))
             || !this.mBlacklist && inputOres.stream()
@@ -400,6 +394,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
             this.addOutput(output);
         this.updateSlots();
     }
+
 
     protected boolean workingAtBottom(ItemStack aStack, int xDrill, int yDrill, int zDrill, int xPipe, int zPipe,
                                       int yHead, int oldYHead) {
@@ -414,4 +409,5 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
             return false;
         }
     }
+
 }
