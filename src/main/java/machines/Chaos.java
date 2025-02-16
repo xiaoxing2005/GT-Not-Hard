@@ -82,7 +82,10 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     private static final IStructureDefinition<Chaos> STRUCTURE_DEFINITION = StructureDefinition.<Chaos>builder()
         .addShape(
             STRUCTURE_PIECE_MAIN,
-            transpose(new String[][] { { "hhh", "hhh", "hhh" }, { "h~h", "h-h", "hhh" }, { "hhh", "hhh", "hhh" } }))
+            transpose(new String[][] {
+                { "hhh", "hhh", "hhh" },
+                { "h~h", "h-h", "hhh" },
+                { "hhh", "hhh", "hhh" } }))
         .addElement(
             'h',
             buildHatchAdder(Chaos.class)
