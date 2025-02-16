@@ -6,10 +6,8 @@ import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose
 import static gregtech.api.GregTechAPI.METATILEENTITIES;
 import static gregtech.api.enums.GTValues.V;
 import static gregtech.api.enums.HatchElement.Dynamo;
-import static gregtech.api.enums.HatchElement.InputBus;
 import static gregtech.api.enums.HatchElement.InputHatch;
 import static gregtech.api.enums.HatchElement.Maintenance;
-import static gregtech.api.enums.HatchElement.OutputHatch;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW;
@@ -18,7 +16,6 @@ import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTUtility.validMTEList;
 import static gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase.GTPPHatchElement.TTDynamo;
-import static net.minecraft.util.StatCollector.translateToLocalFormatted;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,20 +23,13 @@ import java.util.HashMap;
 
 import javax.annotation.Nonnull;
 
-import com.cleanroommc.modularui.utils.math.functions.classic.Pow;
-import gregtech.api.enums.ItemList;
-import gregtech.api.metatileentity.implementations.MTEEnhancedMultiBlockBase;
-import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
-import gregtech.common.tileentities.machines.multi.MTELargeTurbine;
-import net.minecraft.block.Block;
+
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
 import org.jetbrains.annotations.NotNull;
-
-import com.dreammaster.block.BlockList;
 
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
@@ -84,14 +74,166 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
     private int Efficiency = 0;
     private int Voltage = 0;
 
+    //保存NBT数据
     @Override
     public void saveNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
     }
 
+    //加载NBT数据
     @Override
     public void loadNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
+    }
+
+    private static final int mcasingIndex = Textures.BlockIcons.getTextureIndex(
+        Textures.BlockIcons.getCasingTextureForId(
+            GTUtility.getCasingTextureIndex(
+                GregTechAPI.sBlockCasings4, 1
+            )
+        )
+    );
+
+    // 定义机器结构
+    private static final String STRUCTURE_PIECE_MAIN = "main";
+    private static final IStructureDefinition<Origin> STRUCTURE_DEFINITION = StructureDefinition.<Origin>builder()
+        .addShape(
+            STRUCTURE_PIECE_MAIN,
+            transpose(new String[][] {
+                { "hhh", "hhh", "hhh" },
+                { "h~h", "h-h", "hhh" },
+                { "hhh", "hhh", "hhh" } }))
+        .addElement(
+            'h',
+            buildHatchAdder(Origin.class)
+                .atLeast(InputHatch, Maintenance, Dynamo.or(TTDynamo))
+                .casingIndex(mcasingIndex)
+                .dot(1)
+                .buildAndChain(onElementPass(Origin::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings4, 1))))
+        .build();
+
+    private int mCasingAmount;
+    private void onCasingAdded() {
+        mCasingAmount++;
+    }
+
+    @Override
+    public IStructureDefinition<Origin> getStructureDefinition() {
+        return STRUCTURE_DEFINITION;
+    }
+
+    @Override
+    public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
+                                 int colorIndex, boolean aActive, boolean redstoneLevel) {
+        if (side == aFacing) {
+            if (aActive) {
+                return new ITexture[] { casingTexturePages[0][mcasingIndex], TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE)
+                    .extFacing()
+                    .build(),
+                    TextureFactory.builder()
+                        .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW)
+                        .extFacing()
+                        .glow()
+                        .build() };
+            }
+            return new ITexture[] { casingTexturePages[0][mcasingIndex], TextureFactory.builder()
+                .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY)
+                .extFacing()
+                .build(),
+                TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_GLOW)
+                    .extFacing()
+                    .glow()
+                    .build() };
+        }
+        return new ITexture[] { casingTexturePages[0][mcasingIndex] };
+    }
+
+    //主机ToolTips
+    @Override
+    protected MultiblockTooltipBuilder createTooltip() {
+        final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
+        tt.addMachineType("Origin")
+            .addInfo("Runs supplied machines as if placed in the world")
+            .addInfo("Parallel quantity = 2^x")
+            .addInfo("x = Number of machines in the controller")
+            .addInfo("You can put some single block generators of fluid in the host machine.")
+            .addInfo("Compared with the original generator, it has a sixteenfold increase.")
+            .addInfo("It is recommended to use the appropriate fluid fuel for the best experience.")
+            .addSeparator()
+            .beginStructureBlock(3, 3, 3, true)
+            .addController("Front center")
+            .addCasingInfoRange("Clean Stainless Steel Machine Casing", 14, 24, false)
+            .addEnergyHatch("Any casing", 1)
+            .addMaintenanceHatch("Any casing", 1)
+            .addInputBus("Any casing", 1)
+            .addInputHatch("Any casing", 1)
+            .addOutputHatch("Any casing", 1)
+            .toolTipFinisher();
+        return tt;
+    }
+
+    //创造自动搭建
+    @Override
+    public void construct(ItemStack aStack, boolean aHintsOnly) {
+        buildPiece(STRUCTURE_PIECE_MAIN, aStack, aHintsOnly, 1, 1, 0);
+    }
+
+    //生存自动搭建
+    @Override
+    public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
+        if (mMachine) {
+            return -1;
+        }
+        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 1, 1, 0, elementBudget, env, false, true);
+    }
+
+    //检查机器结构
+    @Override
+    public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
+        mCasingAmount = 0;
+        return checkPiece(STRUCTURE_PIECE_MAIN, 1, 1, 0) && mCasingAmount >= 14 && checkHatches();
+    }
+
+    //检查仓室
+    private boolean checkHatches() {
+        return mMaintenanceHatches.size() == 1;
+    }
+
+    @Override
+    public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
+        return new Origin(this.mName);
+    }
+
+    //设定机器最大效率
+    @Override
+    public int getMaxEfficiency(ItemStack aStack) {
+        return 0;
+    }
+
+    @Override
+    public boolean explodesOnComponentBreak(ItemStack aStack) {
+        return false;
+    }
+
+    //获取机器类型
+    @Override
+    public String getMachineType() {
+        return "Origin";
+    }
+
+    //获取最大并行数
+    @Override
+    public int getMaxParallelRecipes() {
+        if (getControllerSlot() == null) {
+            return 1;
+        }
+        if (getControllerSlot().stackSize < 31) {
+            return (int) Math.pow(2, getControllerSlot().stackSize);
+        } else {
+            return Integer.MAX_VALUE;
+        }
     }
 
     //检查配方表
@@ -288,140 +430,6 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
         return super.getAvailableRecipeMaps();
     }
 
-    //获取机器类型
-    @Override
-    public String getMachineType() {
-        return "Origin";
-    }
-
-    //获取最大并行数
-    @Override
-    public int getMaxParallelRecipes() {
-        if (getControllerSlot() == null) {
-            return 1;
-        }
-        if (getControllerSlot().stackSize < 31) {
-            return (int) Math.pow(2, getControllerSlot().stackSize);
-        } else {
-            return Integer.MAX_VALUE;
-        }
-    }
-
-    private static final int mcasingIndex = Textures.BlockIcons.getTextureIndex(
-        Textures.BlockIcons.getCasingTextureForId(
-            GTUtility.getCasingTextureIndex(
-                GregTechAPI.sBlockCasings4, 1
-            )
-        )
-    );
-
-    // 定义机器结构
-    private static final String STRUCTURE_PIECE_MAIN = "main";
-    private static final IStructureDefinition<Origin> STRUCTURE_DEFINITION = StructureDefinition.<Origin>builder()
-        .addShape(
-            STRUCTURE_PIECE_MAIN,
-            transpose(new String[][] {
-                { "hhh", "hhh", "hhh" },
-                { "h~h", "h-h", "hhh" },
-                { "hhh", "hhh", "hhh" } }))
-        .addElement(
-            'h',
-            buildHatchAdder(Origin.class)
-                .atLeast(InputHatch, Maintenance, Dynamo.or(TTDynamo))
-                .casingIndex(mcasingIndex)
-                .dot(1)
-                .buildAndChain(onElementPass(Origin::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings4, 1))))
-        .build();
-
-    private int mCasingAmount;
-    private void onCasingAdded() {
-        mCasingAmount++;
-    }
-
-    @Override
-    public IStructureDefinition<Origin> getStructureDefinition() {
-        return STRUCTURE_DEFINITION;
-    }
-
-    @Override
-    public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
-                                 int colorIndex, boolean aActive, boolean redstoneLevel) {
-        if (side == aFacing) {
-            if (aActive) {
-                return new ITexture[] { casingTexturePages[0][mcasingIndex], TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE)
-                    .extFacing()
-                    .build(),
-                    TextureFactory.builder()
-                        .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW)
-                        .extFacing()
-                        .glow()
-                        .build() };
-            }
-            return new ITexture[] { casingTexturePages[0][mcasingIndex], TextureFactory.builder()
-                .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY)
-                .extFacing()
-                .build(),
-                TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_GLOW)
-                    .extFacing()
-                    .glow()
-                    .build() };
-        }
-        return new ITexture[] { casingTexturePages[0][mcasingIndex] };
-    }
-
-    //创造自动搭建
-    @Override
-    public void construct(ItemStack aStack, boolean aHintsOnly) {
-        buildPiece(STRUCTURE_PIECE_MAIN, aStack, aHintsOnly, 1, 1, 0);
-    }
-
-    //生存自动搭建
-    @Override
-    public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
-        if (mMachine) {
-            return -1;
-        }
-        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 1, 1, 0, elementBudget, env, false, true);
-    }
-
-    //检查机器结构
-    @Override
-    public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
-        mCasingAmount = 0;
-        return checkPiece(STRUCTURE_PIECE_MAIN, 1, 1, 0) && mCasingAmount >= 14 && checkHatches();
-    }
-
-    //检查仓室
-    private boolean checkHatches() {
-        return mMaintenanceHatches.size() == 1;
-    }
-
-    //主机ToolTips
-    @Override
-    protected MultiblockTooltipBuilder createTooltip() {
-        final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Origin")
-            .addInfo("Runs supplied machines as if placed in the world")
-            .addInfo("Parallel quantity = 2^x")
-            .addInfo("x = Number of machines in the controller")
-            .addInfo("You can put some single block generators of fluid in the host machine.")
-            .addInfo("Compared with the original generator, it has a sixteenfold increase.")
-            .addInfo("It is recommended to use the appropriate fluid fuel for the best experience.")
-            .addSeparator()
-            .beginStructureBlock(3, 3, 3, true)
-            .addController("Front center")
-            .addCasingInfoRange("Clean Stainless Steel Machine Casing", 14, 24, false)
-            .addEnergyHatch("Any casing", 1)
-            .addMaintenanceHatch("Any casing", 1)
-            .addInputBus("Any casing", 1)
-            .addInputHatch("Any casing", 1)
-            .addOutputHatch("Any casing", 1)
-            .toolTipFinisher();
-        return tt;
-    }
-
     @Override
     public boolean onRunningTick(ItemStack aStack) {
         if (this.lEUt > 0) {
@@ -486,15 +494,5 @@ public class Origin extends GTPPMultiBlockBase<Origin> implements ISurvivalConst
             }
         }
         return injected > 0;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
-        return new Origin(this.mName);
     }
 }

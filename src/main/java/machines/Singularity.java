@@ -5,43 +5,29 @@ import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructa
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
-import com.gtnewhorizons.modularui.api.drawable.IDrawable;
-import com.gtnewhorizons.modularui.api.math.Alignment;
-import com.gtnewhorizons.modularui.api.math.Pos2d;
-import com.gtnewhorizons.modularui.api.screen.ModularWindow;
-import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
-import com.gtnewhorizons.modularui.common.widget.ButtonWidget;
-import com.gtnewhorizons.modularui.common.widget.DynamicPositionedColumn;
-import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
-import com.gtnewhorizons.modularui.common.widget.SlotWidget;
-import com.gtnewhorizons.modularui.common.widget.TextWidget;
 
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.Textures;
-import gregtech.api.gui.modularui.GTUITextures;
-import gregtech.api.gui.widgets.LockedWhileActiveButton;
 import gregtech.api.interfaces.IHatchElement;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
+import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.render.TextureFactory;
-import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
-import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
-import static gregtech.api.enums.HatchElement.Dynamo;
 import static gregtech.api.enums.HatchElement.Energy;
 import static gregtech.api.enums.HatchElement.ExoticEnergy;
 import static gregtech.api.enums.HatchElement.InputBus;
@@ -54,9 +40,7 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_AR
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
-import static gregtech.api.metatileentity.BaseTileEntity.TOOLTIP_DELAY;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
-import static gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase.GTPPHatchElement.TTDynamo;
 
 public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> implements ISurvivalConstructable {
 
@@ -70,11 +54,13 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     @Override
     public void saveNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
+        aNBT.setBoolean("mBlacklist", this.mBlacklist);
     }
 
     @Override
     public void loadNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
+        this.mBlacklist = aNBT.getBoolean("mBlacklist");
     }
 
     private static final int mcasingIndex = Textures.BlockIcons.getTextureIndex(
@@ -242,98 +228,10 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         GTUtility.sendChatToPlayer(aPlayer, "Mode: " + (this.mBlacklist ? "Blacklist" : "Whitelist"));
     }
 
-    protected boolean mChunkLoadingEnabled = true;
-    protected int workState;
-    protected static final int STATE_DOWNWARD = 0, STATE_AT_BOTTOM = 1, STATE_UPWARD = 2, STATE_ABORT = 3;
-
-    //控制器UI绘制
+    //检查配方表
+    @Nonnull
     @Override
-    public void addUIWidgets(ModularWindow.Builder builder, UIBuildContext buildContext) {
-        super.addUIWidgets(builder, buildContext);
-        final int BUTTON_Y_LEVEL = 91;
+    public CheckRecipeResult checkProcessing() {
 
-        builder.widget(
-                new LockedWhileActiveButton(this.getBaseMetaTileEntity(), builder)
-                    .setOnClick((clickData, widget) -> mChunkLoadingEnabled = !mChunkLoadingEnabled)
-                    .setPlayClickSound(true)
-                    .setBackground(() -> {
-                        if (mChunkLoadingEnabled) {
-                            return new IDrawable[] { GTUITextures.BUTTON_STANDARD_PRESSED,
-                                GTUITextures.OVERLAY_BUTTON_CHUNK_LOADING };
-                        }
-                        return new IDrawable[] { GTUITextures.BUTTON_STANDARD,
-                            GTUITextures.OVERLAY_BUTTON_CHUNK_LOADING_OFF };
-                    })
-                    .attachSyncer(
-                        new FakeSyncWidget.BooleanSyncer(
-                            () -> mChunkLoadingEnabled,
-                            newBoolean -> mChunkLoadingEnabled = newBoolean),
-                        builder,
-                        (widget, val) -> widget.notifyTooltipChange())
-                    .dynamicTooltip(
-                        () -> ImmutableList.of(
-                            StatCollector.translateToLocal(
-                                mChunkLoadingEnabled ? "GT5U.gui.button.chunk_loading_on"
-                                    : "GT5U.gui.button.chunk_loading_off")))
-                    .setTooltipShowUpDelay(TOOLTIP_DELAY)
-                    .setPos(new Pos2d(80, BUTTON_Y_LEVEL))
-                    .setSize(16, 16))
-            .widget(
-                new ButtonWidget().setOnClick((clickData, widget) -> abortDrilling())
-                    .setPlayClickSound(true)
-                    .setBackground(() -> {
-                        if (workState == STATE_ABORT) {
-                            return new IDrawable[] { GTUITextures.BUTTON_STANDARD_PRESSED,
-                                GTUITextures.OVERLAY_BUTTON_RETRACT_PIPE, GTUITextures.OVERLAY_BUTTON_LOCKED };
-                        }
-                        return new IDrawable[] { GTUITextures.BUTTON_STANDARD,
-                            GTUITextures.OVERLAY_BUTTON_RETRACT_PIPE };
-                    })
-                    .attachSyncer(
-                        new FakeSyncWidget.IntegerSyncer(() -> workState, (newInt) -> workState = newInt),
-                        builder,
-                        (widget, integer) -> widget.notifyTooltipChange())
-                    .dynamicTooltip(
-                        () -> ImmutableList.of(
-                            StatCollector.translateToLocalFormatted(
-                                workState == STATE_ABORT ? "GT5U.gui.button.drill_retract_pipes_active"
-                                    : "GT5U.gui.button.drill_retract_pipes")))
-                    .setTooltipShowUpDelay(TOOLTIP_DELAY)
-                    .setPos(new Pos2d(174, 112))
-                    .setSize(16, 16));
-
-        int left = 98;
-        for (ButtonWidget button : getAdditionalButtons(builder, buildContext)) {
-            button.setPos(new Pos2d(left, BUTTON_Y_LEVEL))
-                .setSize(16, 16);
-            builder.widget(button);
-            left += 18;
-        }
-    }
-
-    /** Called once when the abort button is clicked. Use to perform any needed cleanup (e.g. unloading chunks.) */
-    protected void onAbort() {}
-
-    /** Allows inheritors to supply custom shutdown failure messages. */
-    private @NotNull String shutdownReason = "";
-    
-    protected void setShutdownReason(@NotNull String newReason) {
-        shutdownReason = newReason;
-    }
-
-    protected void abortDrilling() {
-        if (workState != STATE_ABORT) {
-            workState = STATE_ABORT;
-            onAbort();
-            setShutdownReason("");
-
-            if (!isAllowedToWork()) {
-                enableWorking();
-            }
-        }
-    }
-
-    protected List<ButtonWidget> getAdditionalButtons(ModularWindow.Builder builder, UIBuildContext buildContext) {
-        return ImmutableList.of();
     }
 }

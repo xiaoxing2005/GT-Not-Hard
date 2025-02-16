@@ -16,6 +16,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import bartworks.API.recipe.BartWorksRecipeMaps;
+import gregtech.api.enums.Textures;
 import gtPlusPlus.api.recipe.GTPPRecipeMaps;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -77,6 +78,55 @@ import util.ChaosManager;
 
 public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISurvivalConstructable {
 
+    public Chaos(int aID, String aName, String aNameRegional) {
+        super(aID, aName, aNameRegional);
+    }
+
+    public Chaos(String aName) {
+        super(aName);
+    }
+
+    private RecipeMap<?> mLastRecipeMap;
+    private ItemStack lastControllerStack;
+    private int tTier = 0;
+    private int mMult = 0;
+    private int mode = 0;
+    private boolean updateMode = false;
+    private boolean downtierUEV = true;
+    private boolean isMultiBlock = false;
+
+    //保存NBT数据
+    @Override
+    public void saveNBTData(NBTTagCompound aNBT) {
+        super.saveNBTData(aNBT);
+        aNBT.setBoolean("downtierUEV", downtierUEV);
+        aNBT.setInteger("mode", mode);
+    }
+
+    //加载NBT数据
+    @Override
+    public void loadNBTData(final NBTTagCompound aNBT) {
+        super.loadNBTData(aNBT);
+        if (aNBT.hasKey("mSeparate")) {
+            // backward compatibility
+            inputSeparation = aNBT.getBoolean("mSeparate");
+        }
+        if (aNBT.hasKey("mUseMultiparallelMode")) {
+            // backward compatibility
+            batchMode = aNBT.getBoolean("mUseMultiparallelMode");
+        }
+        downtierUEV = aNBT.getBoolean("downtierUEV");
+        mode = aNBT.getInteger("mode");
+    }
+
+    private static final int mcasingIndex = Textures.BlockIcons.getTextureIndex(
+        Textures.BlockIcons.getCasingTextureForId(
+            GTUtility.getCasingTextureIndex(
+                GregTechAPI.sBlockCasings4, 0
+            )
+        )
+    );
+
     // 定义机器结构
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final IStructureDefinition<Chaos> STRUCTURE_DEFINITION = StructureDefinition.<Chaos>builder()
@@ -89,39 +139,48 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         .addElement(
             'h',
             buildHatchAdder(Chaos.class)
-            //HatchElementBuilder.<Chaos>builder()
                 .atLeast(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy.or(ExoticEnergy))
-                .casingIndex(48)
+                .casingIndex(mcasingIndex)
                 .dot(1)
                 .buildAndChain(onElementPass(Chaos::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings4, 0))))
         .build();
 
     private int mCasingAmount;
-
-    private RecipeMap<?> mLastRecipeMap;
-    private ItemStack lastControllerStack;
-    private int tTier = 0;
-    private int mMult = 0;
-    private int mode = 0;
-    private boolean updateMode = false;
-    private boolean downtierUEV = true;
-    private boolean isMultiBlock = false;
-
     private void onCasingAdded() {
         mCasingAmount++;
     }
 
-    public Chaos(int aID, String aName, String aNameRegional) {
-        super(aID, aName, aNameRegional);
-    }
-
-    public Chaos(String aName) {
-        super(aName);
+    @Override
+    public IStructureDefinition<Chaos> getStructureDefinition() {
+        return STRUCTURE_DEFINITION;
     }
 
     @Override
-    public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
-        return new Chaos(this.mName);
+    public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
+                                 int colorIndex, boolean aActive, boolean redstoneLevel) {
+        if (side == aFacing) {
+            if (aActive) {
+                return new ITexture[] { casingTexturePages[0][mcasingIndex], TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE)
+                    .extFacing()
+                    .build(),
+                    TextureFactory.builder()
+                        .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW)
+                        .extFacing()
+                        .glow()
+                        .build() };
+            }
+            return new ITexture[] { casingTexturePages[0][mcasingIndex], TextureFactory.builder()
+                .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY)
+                .extFacing()
+                .build(),
+                TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_GLOW)
+                    .extFacing()
+                    .glow()
+                    .build() };
+        }
+        return new ITexture[] { casingTexturePages[0][mcasingIndex] };
     }
 
     @Override
@@ -147,32 +206,70 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         return tt;
     }
 
+    //创造自动搭建
     @Override
-    public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
-        int colorIndex, boolean aActive, boolean redstoneLevel) {
-        if (side == aFacing) {
-            if (aActive) {
-                return new ITexture[] { casingTexturePages[0][48], TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE)
-                    .extFacing()
-                    .build(),
-                    TextureFactory.builder()
-                        .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_ACTIVE_GLOW)
-                        .extFacing()
-                        .glow()
-                        .build() };
-            }
-            return new ITexture[] { casingTexturePages[0][48], TextureFactory.builder()
-                .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY)
-                .extFacing()
-                .build(),
-                TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_PROCESSING_ARRAY_GLOW)
-                    .extFacing()
-                    .glow()
-                    .build() };
+    public void construct(ItemStack aStack, boolean aHintsOnly) {
+        buildPiece(STRUCTURE_PIECE_MAIN, aStack, aHintsOnly, 1, 1, 0);
+    }
+
+    //生存自动搭建
+    @Override
+    public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
+        if (mMachine) {
+            return -1;
         }
-        return new ITexture[] { casingTexturePages[0][48] };
+        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 1, 1, 0, elementBudget, env, false, true);
+    }
+
+    //检查机器结构
+    @Override
+    public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
+        mExoticEnergyHatches.clear();
+        mCasingAmount = 0;
+        return checkPiece(STRUCTURE_PIECE_MAIN, 1, 1, 0) && mCasingAmount >= 14 && checkHatches();
+    }
+
+    //检查仓室
+    private boolean checkHatches() {
+        return mMaintenanceHatches.size() == 1;
+    }
+
+    @Override
+    public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
+        return new Chaos(this.mName);
+    }
+
+    //设定机器最大效率
+    @Override
+    public int getMaxEfficiency(ItemStack aStack) {
+        return 10000;
+    }
+
+    @Override
+    public int getDamageToComponent(ItemStack aStack) {
+        return 0;
+    }
+
+    @Override
+    public boolean explodesOnComponentBreak(ItemStack aStack) {
+        return false;
+    }
+
+    private List<IHatchElement<? super Chaos>> getAllowedHatches() {
+        return ImmutableList.of(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy, ExoticEnergy);
+    }
+
+    // 并行数目
+    private int getMaxParallel() {
+        if (getControllerSlot() == null) {
+            return 1;
+        }
+        // return getControllerSlot().stackSize << mMult;
+        if (getControllerSlot().stackSize < 31) {
+            return (int) Math.pow(2, getControllerSlot().stackSize);
+        } else {
+            return Integer.MAX_VALUE;
+        }
     }
 
     // 读取通常大机器配方
@@ -345,23 +442,6 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
     }
 
     @Override
-    protected void sendStartMultiBlockSoundLoop() {
-        SoundResource sound = ChaosManager.getSoundResource(ChaosManager.getMachineName(getControllerSlot()));
-        if (sound != null) {
-            sendLoopStart((byte) sound.id);
-        }
-    }
-
-    @Override
-    public void startSoundLoop(byte aIndex, double aX, double aY, double aZ) {
-        super.startSoundLoop(aIndex, aX, aY, aZ);
-        SoundResource sound = SoundResource.get(aIndex < 0 ? aIndex + 256 : 0);
-        if (sound != null) {
-            GTUtility.doSoundAtClient(sound, getTimeBetweenProcessSounds(), 1.0F, aX, aY, aZ);
-        }
-    }
-
-    @Override
     @NotNull
     public CheckRecipeResult checkProcessing() {
         if (!GTUtility.areStacksEqual(lastControllerStack, getControllerSlot()) || updateMode) {
@@ -449,19 +529,6 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
         }
     }
 
-    // 并行数目
-    private int getMaxParallel() {
-        if (getControllerSlot() == null) {
-            return 1;
-        }
-        // return getControllerSlot().stackSize << mMult;
-        if (getControllerSlot().stackSize < 31) {
-            return (int) Math.pow(2, getControllerSlot().stackSize);
-        } else {
-            return Integer.MAX_VALUE;
-        }
-    }
-
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
         super.onPostTick(aBaseMetaTileEntity, aTick);
@@ -473,106 +540,6 @@ public class Chaos extends MTEExtendedPowerMultiBlockBase<Chaos> implements ISur
                 tInputHatch.mRecipeMap = mLastRecipeMap;
             }
         }
-    }
-
-    @Override
-    public IStructureDefinition<Chaos> getStructureDefinition() {
-        return STRUCTURE_DEFINITION;
-    }
-
-    @Override
-    public void construct(ItemStack aStack, boolean aHintsOnly) {
-        buildPiece(STRUCTURE_PIECE_MAIN, aStack, aHintsOnly, 1, 1, 0);
-    }
-
-    @Override
-    public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
-        if (mMachine) {
-            return -1;
-        }
-        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 1, 1, 0, elementBudget, env, false, true);
-    }
-
-    private boolean checkHatches() {
-        return mMaintenanceHatches.size() == 1;
-    }
-
-    @Override
-    public void saveNBTData(NBTTagCompound aNBT) {
-        super.saveNBTData(aNBT);
-        aNBT.setBoolean("downtierUEV", downtierUEV);
-        aNBT.setInteger("mode", mode);
-    }
-
-    @Override
-    public void loadNBTData(final NBTTagCompound aNBT) {
-        super.loadNBTData(aNBT);
-        if (aNBT.hasKey("mSeparate")) {
-            // backward compatibility
-            inputSeparation = aNBT.getBoolean("mSeparate");
-        }
-        if (aNBT.hasKey("mUseMultiparallelMode")) {
-            // backward compatibility
-            batchMode = aNBT.getBoolean("mUseMultiparallelMode");
-        }
-        downtierUEV = aNBT.getBoolean("downtierUEV");
-        mode = aNBT.getInteger("mode");
-    }
-
-    @Override
-    public final void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
-        if (aPlayer.isSneaking()) {
-            // Lock to single recipe
-            super.onScrewdriverRightClick(side, aPlayer, aX, aY, aZ);
-        } else {
-            inputSeparation = !inputSeparation;
-            GTUtility.sendChatToPlayer(
-                aPlayer,
-                StatCollector.translateToLocal("GT5U.machines.separatebus") + " " + inputSeparation);
-        }
-    }
-
-    @Override
-    public boolean onWireCutterRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer,
-        float aX, float aY, float aZ) {
-        if (aPlayer.isSneaking()) {
-            batchMode = !batchMode;
-            if (batchMode) {
-                GTUtility.sendChatToPlayer(aPlayer, "Batch recipes");
-            } else {
-                GTUtility.sendChatToPlayer(aPlayer, "Don't batch recipes");
-            }
-        } else {
-            downtierUEV = !downtierUEV;
-            GTUtility.sendChatToPlayer(aPlayer, "Treat UEV+ machines as multiple UHV " + downtierUEV);
-        }
-        return true;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
-    }
-
-    private List<IHatchElement<? super Chaos>> getAllowedHatches() {
-        return ImmutableList.of(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy, ExoticEnergy);
-    }
-
-    @Override
-    public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
-        mExoticEnergyHatches.clear();
-        mCasingAmount = 0;
-        return checkPiece(STRUCTURE_PIECE_MAIN, 1, 1, 0) && mCasingAmount >= 14 && checkHatches();
     }
 
     @Override
