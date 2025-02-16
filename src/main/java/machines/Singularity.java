@@ -20,11 +20,14 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
 import gregtech.api.objects.XSTR;
 import gregtech.api.recipe.check.CheckRecipeResult;
+import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.shutdown.ShutDownReasonRegistry;
+import gtneioreplugin.plugin.block.BlockDimensionDisplay;
 import gtneioreplugin.util.DimensionHelper;
+import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -248,6 +251,36 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     public static BiMap<Integer, String> dimMapping = HashBiMap.create();
     public static HashMap<Integer, String> cahce = new HashMap<>();
 
+    @Nonnull
+    @Override
+    public CheckRecipeResult checkProcessing() {
+        mMaxProgresstime = 20;
+        ItemStack slot = getControllerSlot();
+        BlockDimensionDisplay block = (BlockDimensionDisplay) Block.getBlockFromItem(slot.getItem());
+        String mDimensionName = block.getDimension();
+        for(int i: DimensionManager.getStaticDimensionIDs()) {
+            int index;
+            if(dimMapping.containsKey(i)) {
+                continue;
+            }
+            String name = getNameForID(i);
+            if (this.dropMap == null || this.totalWeight == 0) this.calculateDropMap();
+
+            if (this.totalWeight != 0.f) {
+                this.handleOutputs();
+                return CheckRecipeResultRegistry.SUCCESSFUL;
+            } else {
+                this.stopMachine(ShutDownReasonRegistry.NONE);
+
+            }
+            if((index=dimName.indexOf(name))>=0){
+                dimMapping.forcePut(i, DimensionHelper.DimNameDisplayed[index]);
+            }
+        }
+        return CheckRecipeResultRegistry.NO_RECIPE;
+    }
+
+    /*
     @SubscribeEvent
     public void getDimName(WorldEvent.Load mDemName) {
         for(int i: DimensionManager.getStaticDimensionIDs()) {
@@ -261,6 +294,8 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
             };
         }
     }
+
+     */
 
     public static String getNameForID(int id) {
         return	GalacticGregRegistry
@@ -283,6 +318,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     private float totalWeight;
     private int multiplier = 1;
 
+    //下一次产出矿石
     private ItemStack nextOre() {
         float currentWeight = 0.f;
         while (true) {
