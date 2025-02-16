@@ -1,11 +1,16 @@
 package machines;
 
+import bwcrossmod.galacticgreg.VoidMinerUtility;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import galacticgreg.registry.GalacticGregRegistry;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.IHatchElement;
@@ -13,17 +18,27 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
+import gregtech.api.objects.XSTR;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.api.util.shutdown.ShutDownReasonRegistry;
+import gtneioreplugin.util.DimensionHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.world.gen.ChunkProviderServer;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.event.world.WorldEvent;
 
 import javax.annotation.Nonnull;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
@@ -228,10 +243,139 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         GTUtility.sendChatToPlayer(aPlayer, "Mode: " + (this.mBlacklist ? "Blacklist" : "Whitelist"));
     }
 
-    //检查配方表
-    @Nonnull
-    @Override
-    public CheckRecipeResult checkProcessing() {
+    public static List<String> dimName = Arrays.asList(DimensionHelper.DimName);
+    public static List<String> dimNameShort = Arrays.asList(DimensionHelper.DimNameDisplayed);
+    public static BiMap<Integer, String> dimMapping = HashBiMap.create();
+    public static HashMap<Integer, String> cahce = new HashMap<>();
 
+    @SubscribeEvent
+    public void getDimName(WorldEvent.Load mDemName) {
+        for(int i: DimensionManager.getStaticDimensionIDs()) {
+            if(dimMapping.containsKey(i)) {
+                continue;
+            }
+            String name = getNameForID(i);
+            int index;
+            if((index=dimName.indexOf(name))>=0){
+                dimMapping.forcePut(i, DimensionHelper.DimNameDisplayed[index]);
+            };
+        }
+    }
+
+    public static String getNameForID(int id) {
+        return	GalacticGregRegistry
+            .getModContainers().stream()
+            .flatMap(modContainer -> modContainer.getDimensionList().stream())
+            .filter(s->{
+                if(DimensionManager.getWorld(id)==null) {
+                    return false;
+                }
+                return s.getChunkProviderName()
+                    .equals(DimensionManager.getProvider(id).createChunkGenerator().getClass().getName());
+            })
+            .map(s->s.getDimIdentifier())
+            .findFirst()
+            .orElse(null);
+    }
+
+    private VoidMinerUtility.DropMap dropMap = null;
+    private VoidMinerUtility.DropMap extraDropMap = null;
+    private float totalWeight;
+    private int multiplier = 1;
+
+    private ItemStack nextOre() {
+        float currentWeight = 0.f;
+        while (true) {
+            float randomNumber = XSTR.XSTR_INSTANCE.nextFloat() * this.totalWeight;
+            for (Map.Entry<GTUtility.ItemId, Float> entry : this.dropMap.getInternalMap()
+                .entrySet()) {
+                currentWeight += entry.getValue();
+                if (randomNumber < currentWeight) return entry.getKey()
+                    .getItemStack();
+            }
+            for (Map.Entry<GTUtility.ItemId, Float> entry : this.extraDropMap.getInternalMap()
+                .entrySet()) {
+                currentWeight += entry.getValue();
+                if (randomNumber < currentWeight) return entry.getKey()
+                    .getItemStack();
+            }
+        }
+    }
+
+    /**
+     * Handles the ores added manually with {@link VoidMinerUtility#addMaterialToDimensionList}
+     *
+     * @param id the specified dim id
+     */
+    private void handleExtraDrops(int id) {
+        if (VoidMinerUtility.extraDropsDimMap.containsKey(id)) {
+            extraDropMap = VoidMinerUtility.extraDropsDimMap.get(id);
+        }
+    }
+
+    /**
+     * Gets the DropMap of the dim for the specified dim id
+     *
+     * @param id the dim number
+     */
+    private void handleModDimDef(int id) {
+        if (VoidMinerUtility.dropMapsByDimId.containsKey(id)) {
+            this.dropMap = VoidMinerUtility.dropMapsByDimId.get(id);
+        } else {
+            String chunkProviderName = ((ChunkProviderServer) this.getBaseMetaTileEntity()
+                .getWorld()
+                .getChunkProvider()).currentChunkProvider.getClass()
+                .getName();
+
+            if (VoidMinerUtility.dropMapsByChunkProviderName.containsKey(chunkProviderName)) {
+                this.dropMap = VoidMinerUtility.dropMapsByChunkProviderName.get(chunkProviderName);
+            }
+        }
+    }
+
+    /**
+     * Computes first the ores related to the dim the VM is in, then the ores added manually, then it computes the
+     * totalWeight for normalisation
+     */
+    private void calculateDropMap() {
+        this.dropMap = new VoidMinerUtility.DropMap();
+        this.extraDropMap = new VoidMinerUtility.DropMap();
+        int id = this.getBaseMetaTileEntity()
+            .getWorld().provider.dimensionId;
+        this.handleModDimDef(id);
+        this.handleExtraDrops(id);
+        this.totalWeight = dropMap.getTotalWeight() + extraDropMap.getTotalWeight();
+    }
+
+    /**
+     * Output logic of the VM
+     */
+    private void handleOutputs() {
+        final List<ItemStack> inputOres = this.getStoredInputs()
+            .stream()
+            .filter(GTUtility::isOre)
+            .collect(Collectors.toList());
+        final ItemStack output = this.nextOre();
+        output.stackSize = multiplier;
+        if (inputOres.isEmpty() || this.mBlacklist && inputOres.stream()
+            .noneMatch(is -> GTUtility.areStacksEqual(is, output))
+            || !this.mBlacklist && inputOres.stream()
+            .anyMatch(is -> GTUtility.areStacksEqual(is, output)))
+            this.addOutput(output);
+        this.updateSlots();
+    }
+
+    protected boolean workingAtBottom(ItemStack aStack, int xDrill, int yDrill, int zDrill, int xPipe, int zPipe,
+                                      int yHead, int oldYHead) {
+        // if the dropMap has never been initialised or if the dropMap is empty
+        if (this.dropMap == null || this.totalWeight == 0) this.calculateDropMap();
+
+        if (this.totalWeight != 0.f) {
+            this.handleOutputs();
+            return true;
+        } else {
+            this.stopMachine(ShutDownReasonRegistry.NONE);
+            return false;
+        }
     }
 }
