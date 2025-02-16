@@ -1,48 +1,5 @@
 package machines;
 
-import bwcrossmod.galacticgreg.VoidMinerUtility;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableList;
-import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
-import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
-import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
-import com.gtnewhorizon.structurelib.structure.StructureDefinition;
-
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import galacticgreg.registry.GalacticGregRegistry;
-import gregtech.api.GregTechAPI;
-import gregtech.api.enums.Textures;
-import gregtech.api.interfaces.IHatchElement;
-import gregtech.api.interfaces.ITexture;
-import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
-import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
-import gregtech.api.objects.XSTR;
-import gregtech.api.recipe.check.CheckRecipeResult;
-import gregtech.api.recipe.check.CheckRecipeResultRegistry;
-import gregtech.api.render.TextureFactory;
-import gregtech.api.util.GTUtility;
-import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.api.util.shutdown.ShutDownReasonRegistry;
-import gtneioreplugin.plugin.block.BlockDimensionDisplay;
-import gtneioreplugin.util.DimensionHelper;
-import net.minecraft.block.Block;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.world.gen.ChunkProviderServer;
-import net.minecraftforge.common.DimensionManager;
-import net.minecraftforge.common.util.ForgeDirection;
-import net.minecraftforge.event.world.WorldEvent;
-
-import javax.annotation.Nonnull;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
@@ -60,44 +17,89 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_AR
 import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nonnull;
+
+import net.minecraft.block.Block;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.world.gen.ChunkProviderServer;
+import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.common.util.ForgeDirection;
+
+import com.google.common.collect.ImmutableList;
+import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
+import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
+import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
+import com.gtnewhorizon.structurelib.structure.StructureDefinition;
+import com.gtnewhorizons.modularui.api.math.Alignment;
+import com.gtnewhorizons.modularui.common.widget.DynamicPositionedColumn;
+import com.gtnewhorizons.modularui.common.widget.SlotWidget;
+import com.gtnewhorizons.modularui.common.widget.TextWidget;
+import com.mofoga.gtnothard.MyMod;
+
+import bwcrossmod.galacticgreg.VoidMinerUtility;
+import galacticgreg.registry.GalacticGregRegistry;
+import gregtech.api.GregTechAPI;
+import gregtech.api.enums.Textures;
+import gregtech.api.interfaces.IHatchElement;
+import gregtech.api.interfaces.ITexture;
+import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
+import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
+import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
+import gregtech.api.objects.XSTR;
+import gregtech.api.recipe.check.CheckRecipeResult;
+import gregtech.api.recipe.check.CheckRecipeResultRegistry;
+import gregtech.api.render.TextureFactory;
+import gregtech.api.util.GTUtility;
+import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.api.util.shutdown.ShutDownReasonRegistry;
+import gtneioreplugin.plugin.block.ModBlocks;
+import gtneioreplugin.plugin.item.ItemDimensionDisplay;
+
 public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> implements ISurvivalConstructable {
 
     public Singularity(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
     }
 
+    private String mLastDimensionOverride = "None";
+
     public Singularity(String aName) {
         super(aName);
     }
+
     @Override
     public void saveNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
         aNBT.setBoolean("mBlacklist", this.mBlacklist);
+        aNBT.setString("mLastDimensionOverride", this.mLastDimensionOverride);
     }
 
     @Override
     public void loadNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
         this.mBlacklist = aNBT.getBoolean("mBlacklist");
+        this.mLastDimensionOverride = aNBT.getString("mLastDimensionOverride");
+
     }
 
     private static final int mcasingIndex = Textures.BlockIcons.getTextureIndex(
-        Textures.BlockIcons.getCasingTextureForId(
-            GTUtility.getCasingTextureIndex(
-                GregTechAPI.sBlockCasings4, 2
-            )
-        )
-    );
+        Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings4, 2)));
 
     // 定义机器结构
     private static final String STRUCTURE_PIECE_MAIN = "main";
-    private static final IStructureDefinition<Singularity> STRUCTURE_DEFINITION = StructureDefinition.<Singularity>builder()
+    private static final IStructureDefinition<Singularity> STRUCTURE_DEFINITION = StructureDefinition
+        .<Singularity>builder()
         .addShape(
             STRUCTURE_PIECE_MAIN,
-            transpose(new String[][] {
-                { "hhh", "hhh", "hhh" },
-                { "h~h", "h-h", "hhh" },
-                { "hhh", "hhh", "hhh" } }))
+            transpose(new String[][] { { "hhh", "hhh", "hhh" }, { "h~h", "h h", "hhh" }, { "hhh", "hhh", "hhh" } }))
         .addElement(
             'h',
             buildHatchAdder(Singularity.class)
@@ -108,6 +110,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         .build();
 
     private int mCasingAmount;
+
     private void onCasingAdded() {
         mCasingAmount++;
     }
@@ -119,7 +122,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
-                                 int colorIndex, boolean aActive, boolean redstoneLevel) {
+        int colorIndex, boolean aActive, boolean redstoneLevel) {
         if (side == aFacing) {
             if (aActive) {
                 return new ITexture[] { casingTexturePages[0][mcasingIndex], TextureFactory.builder()
@@ -145,7 +148,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         return new ITexture[] { casingTexturePages[0][mcasingIndex] };
     }
 
-    //主机ToolTips
+    // 主机ToolTips
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
@@ -168,13 +171,13 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         return tt;
     }
 
-    //创造自动搭建
+    // 创造自动搭建
     @Override
     public void construct(ItemStack aStack, boolean aHintsOnly) {
         buildPiece(STRUCTURE_PIECE_MAIN, aStack, aHintsOnly, 1, 1, 0);
     }
 
-    //生存自动搭建
+    // 生存自动搭建
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) {
@@ -183,14 +186,14 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 1, 1, 0, elementBudget, env, false, true);
     }
 
-    //检查机器结构
+    // 检查机器结构
     @Override
     public boolean checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack) {
         mCasingAmount = 0;
         return checkPiece(STRUCTURE_PIECE_MAIN, 1, 1, 0) && mCasingAmount >= 14 && checkHatches();
     }
 
-    //检查仓室
+    // 检查仓室
     private boolean checkHatches() {
         return mMaintenanceHatches.size() == 1;
     }
@@ -199,7 +202,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         return ImmutableList.of(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy, ExoticEnergy);
     }
 
-    //获取最大并行数
+    // 获取最大并行数
     private int getMaxParallel() {
         if (getControllerSlot() == null) {
             return 1;
@@ -213,8 +216,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
 
     @Override
     public boolean isCorrectMachinePart(ItemStack aStack) {
-        return aStack != null && aStack.getUnlocalizedName()
-            .startsWith("gt.blockmachines.");
+        return aStack != null;
     }
 
     @Override
@@ -239,78 +241,104 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
 
     private boolean mBlacklist = false;
 
-    //黑白名单配置
+    // 黑白名单配置
     @Override
     public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
         this.mBlacklist = !this.mBlacklist;
         GTUtility.sendChatToPlayer(aPlayer, "Mode: " + (this.mBlacklist ? "Blacklist" : "Whitelist"));
     }
 
-    public static List<String> dimName = Arrays.asList(DimensionHelper.DimName);
-    public static List<String> dimNameShort = Arrays.asList(DimensionHelper.DimNameDisplayed);
-    public static BiMap<Integer, String> dimMapping = HashBiMap.create();
-    public static HashMap<Integer, String> cahce = new HashMap<>();
-
     @Nonnull
     @Override
     public CheckRecipeResult checkProcessing() {
-        mMaxProgresstime = 20;
-        ItemStack slot = getControllerSlot();
-        BlockDimensionDisplay block = (BlockDimensionDisplay) Block.getBlockFromItem(slot.getItem());
-        String mDimensionName = block.getDimension();
-        for(int i: DimensionManager.getStaticDimensionIDs()) {
-            int index;
-            if(dimMapping.containsKey(i)) {
-                continue;
-            }
-            String name = getNameForID(i);
-            if (this.dropMap == null || this.totalWeight == 0) this.calculateDropMap();
+        mMaxProgresstime = 1;
+        String dim = Optional.ofNullable(this.mInventory[1])
+            .filter(s -> s.getItem() instanceof ItemDimensionDisplay)
+            .map(ItemDimensionDisplay::getDimension)
+            .orElse("None")
 
-            if (this.totalWeight != 0.f) {
-                this.handleOutputs();
-                return CheckRecipeResultRegistry.SUCCESSFUL;
-            } else {
-                this.stopMachine(ShutDownReasonRegistry.NONE);
+        ;
+        if (!Objects.equals(dim, mLastDimensionOverride)) {
 
-            }
-            if((index=dimName.indexOf(name))>=0){
-                dimMapping.forcePut(i, DimensionHelper.DimNameDisplayed[index]);
-            }
+            mLastDimensionOverride = dim;
+            totalWeight = 0;
+            // System.out.println("set "+totalWeight+" "+dim);
+        } ;
+        if (this.dropMap == null || this.totalWeight == 0) this.calculateDropMap();
+
+        if (this.totalWeight != 0.f) {
+            this.handleOutputs();
+            return CheckRecipeResultRegistry.SUCCESSFUL;
+        } else {
+            this.stopMachine(ShutDownReasonRegistry.NONE);
+
+            return CheckRecipeResultRegistry.NO_RECIPE;
         }
-        return CheckRecipeResultRegistry.NO_RECIPE;
+
+    }
+
+    private String get() {
+        String ext = null;
+        try {
+            Block block = ModBlocks.getBlock(mLastDimensionOverride);
+            ext = new ItemStack(block).getDisplayName();
+        } catch (Exception ignored) {}
+        return "Dimension Override:" + (ext == null ? mLastDimensionOverride : ext);
+    }
+
+    @Override
+    protected void drawTexts(DynamicPositionedColumn screenElements, SlotWidget inventorySlot) {
+        super.drawTexts(screenElements, inventorySlot);
+        screenElements.widget(
+            TextWidget.dynamicString(this::get)
+                .setSynced(true)
+                .setTextAlignment(Alignment.CenterLeft)
+                .setEnabled(true));
     }
 
     /*
-    @SubscribeEvent
-    public void getDimName(WorldEvent.Load mDemName) {
-        for(int i: DimensionManager.getStaticDimensionIDs()) {
-            if(dimMapping.containsKey(i)) {
-                continue;
-            }
-            String name = getNameForID(i);
-            int index;
-            if((index=dimName.indexOf(name))>=0){
-                dimMapping.forcePut(i, DimensionHelper.DimNameDisplayed[index]);
-            };
-        }
-    }
-
+     * @SubscribeEvent
+     * public void getDimName(WorldEvent.Load mDemName) {
+     * for(int i: DimensionManager.getStaticDimensionIDs()) {
+     * if(dimMapping.containsKey(i)) {
+     * continue;
+     * }
+     * String name = getNameForID(i);
+     * int index;
+     * if((index=dimName.indexOf(name))>=0){
+     * dimMapping.forcePut(i, DimensionHelper.DimNameDisplayed[index]);
+     * };
+     * }
+     * }
      */
 
     public static String getNameForID(int id) {
-        return	GalacticGregRegistry
-            .getModContainers().stream()
-            .flatMap(modContainer -> modContainer.getDimensionList().stream())
-            .filter(s->{
-                if(DimensionManager.getWorld(id)==null) {
+        return GalacticGregRegistry.getModContainers()
+            .stream()
+            .flatMap(
+                modContainer -> modContainer.getDimensionList()
+                    .stream())
+            .filter(s -> {
+                if (DimensionManager.getWorld(id) == null) {
                     return false;
                 }
                 return s.getChunkProviderName()
-                    .equals(DimensionManager.getProvider(id).createChunkGenerator().getClass().getName());
+                    .equals(
+                        DimensionManager.getProvider(id)
+                            .createChunkGenerator()
+                            .getClass()
+                            .getName());
             })
-            .map(s->s.getDimIdentifier())
+            .map(s -> s.getDimIdentifier())
             .findFirst()
             .orElse(null);
+    }
+
+    private String a() {
+        return Optional.ofNullable(this.mInventory[1])
+            .filter(s -> s.getItem() instanceof ItemDimensionDisplay)
+            .map(ItemDimensionDisplay::getDimension)
+            .orElse("None");
     }
 
     private VoidMinerUtility.DropMap dropMap = null;
@@ -318,7 +346,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     private float totalWeight;
     private int multiplier = 1;
 
-    //下一次产出矿石
+    // 下一次产出矿石
     private ItemStack nextOre() {
         float currentWeight = 0.f;
         while (true) {
@@ -344,10 +372,14 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
      * @param id the specified dim id
      */
     private void handleExtraDrops(int id) {
+        id = MyMod.dimMapping.inverse()
+            .getOrDefault(a(), id);
         if (VoidMinerUtility.extraDropsDimMap.containsKey(id)) {
             extraDropMap = VoidMinerUtility.extraDropsDimMap.get(id);
         }
     }
+
+    private int dim;
 
     /**
      * Gets the DropMap of the dim for the specified dim id
@@ -355,14 +387,16 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
      * @param id the dim number
      */
     private void handleModDimDef(int id) {
+        id = dim = MyMod.dimMapping.inverse()
+            .getOrDefault(a(), id);
         if (VoidMinerUtility.dropMapsByDimId.containsKey(id)) {
             this.dropMap = VoidMinerUtility.dropMapsByDimId.get(id);
         } else {
             String chunkProviderName = ((ChunkProviderServer) this.getBaseMetaTileEntity()
                 .getWorld()
                 .getChunkProvider()).currentChunkProvider.getClass()
-                .getName();
-
+                    .getName();
+            chunkProviderName = MyMod.cahce.getOrDefault(dim, chunkProviderName);
             if (VoidMinerUtility.dropMapsByChunkProviderName.containsKey(chunkProviderName)) {
                 this.dropMap = VoidMinerUtility.dropMapsByChunkProviderName.get(chunkProviderName);
             }
@@ -402,7 +436,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     }
 
     protected boolean workingAtBottom(ItemStack aStack, int xDrill, int yDrill, int zDrill, int xPipe, int zPipe,
-                                      int yHead, int oldYHead) {
+        int yHead, int oldYHead) {
         // if the dropMap has never been initialised or if the dropMap is empty
         if (this.dropMap == null || this.totalWeight == 0) this.calculateDropMap();
 
