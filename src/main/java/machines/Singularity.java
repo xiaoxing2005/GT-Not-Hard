@@ -3,6 +3,7 @@ package machines;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
+import static gregtech.api.enums.GTValues.debugDriller;
 import static gregtech.api.enums.HatchElement.Energy;
 import static gregtech.api.enums.HatchElement.ExoticEnergy;
 import static gregtech.api.enums.HatchElement.InputBus;
@@ -16,19 +17,29 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_AR
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_PROCESSING_ARRAY_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static gregtech.common.UndergroundOil.undergroundOil;
+import static gregtech.common.UndergroundOil.undergroundOilReadInformation;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import gregtech.api.util.GTLog;
+import gregtech.api.util.ValidationResult;
+import gregtech.api.util.ValidationType;
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
+import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -67,6 +78,9 @@ import gregtech.api.util.ParallelHelper;
 import gregtech.api.util.shutdown.ShutDownReasonRegistry;
 import gtneioreplugin.plugin.block.ModBlocks;
 import gtneioreplugin.plugin.item.ItemDimensionDisplay;
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidStack;
+import org.jetbrains.annotations.NotNull;
 
 public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> implements ISurvivalConstructable {
 
@@ -258,10 +272,11 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         GTUtility.sendChatToPlayer(aPlayer, "Mode: " + (this.mBlacklist ? "Blacklist" : "Whitelist"));
     }
 
+    //机器运行逻辑
     @Nonnull
     @Override
     public CheckRecipeResult checkProcessing() {
-        mMaxProgresstime = 1;
+        mMaxProgresstime = 3600;
         String dim = Optional.ofNullable(this.mInventory[1])
             .filter(s -> s.getItem() instanceof ItemDimensionDisplay)
             .map(ItemDimensionDisplay::getDimension)
@@ -269,28 +284,26 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
 
         ;
         if (!Objects.equals(dim, mLastDimensionOverride)) {
-
             mLastDimensionOverride = dim;
             totalWeight = 0;
-            // System.out.println("set "+totalWeight+" "+dim);
-        } ;
-        if (this.dropMap == null || this.totalWeight == 0) this.calculateDropMap();
-
-
+        }
+        if (this.dropMap == null || this.totalWeight == 0) {
+            this.calculateDropMap();
+        }
         if (this.totalWeight != 0.f) {
-            this.handleOutputs();
+            for (int mLoop = 0; mLoop < 256; mLoop++){
+                this.handleOutputs();
+            }
             return CheckRecipeResultRegistry.SUCCESSFUL;
         } else {
             this.stopMachine(ShutDownReasonRegistry.NONE);
-
-
             return CheckRecipeResultRegistry.NO_RECIPE;
         }
 
     }
 
-
-    private String get() {
+    //获取主方块显示内容
+    private String getDimensionNameText() {
         String ext = null;
         try {
             Block block = ModBlocks.getBlock(mLastDimensionOverride);
@@ -299,39 +312,19 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         return "Dimension Override:" + (ext == null ? mLastDimensionOverride : ext);
     }
 
+    //主方块中显示信息
     @Override
     protected void drawTexts(DynamicPositionedColumn screenElements, SlotWidget inventorySlot) {
         super.drawTexts(screenElements, inventorySlot);
         screenElements.widget(
-            TextWidget.dynamicString(this::get)
+            TextWidget.dynamicString(this::getDimensionNameText)
                 .setSynced(true)
                 .setTextAlignment(Alignment.CenterLeft)
                 .setEnabled(true));
     }
 
-    public static String getNameForID(int id) {
-        return GalacticGregRegistry.getModContainers()
-            .stream()
-            .flatMap(
-                modContainer -> modContainer.getDimensionList()
-                    .stream())
-            .filter(s -> {
-                if (DimensionManager.getWorld(id) == null) {
-                    return false;
-                }
-                return s.getChunkProviderName()
-                    .equals(
-                        DimensionManager.getProvider(id)
-                            .createChunkGenerator()
-                            .getClass()
-                            .getName());
-            })
-            .map(s -> s.getDimIdentifier())
-            .findFirst()
-            .orElse(null);
-    }
-
-    private String a() {
+    //获取主方块中维度方块的的维度名称
+    private String getPluginDimensionName() {
         return Optional.ofNullable(this.mInventory[1])
             .filter(s -> s.getItem() instanceof ItemDimensionDisplay)
             .map(ItemDimensionDisplay::getDimension)
@@ -362,14 +355,10 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         }
     }
 
-    /**
-     * Handles the ores added manually with {@link VoidMinerUtility#addMaterialToDimensionList}
-     *
-     * @param id the specified dim id
-     */
+    //处理额外添加的矿石
     private void handleExtraDrops(int id) {
         id = MyMod.dimMapping.inverse()
-            .getOrDefault(a(), id);
+            .getOrDefault(getPluginDimensionName(), id);
         if (VoidMinerUtility.extraDropsDimMap.containsKey(id)) {
             extraDropMap = VoidMinerUtility.extraDropsDimMap.get(id);
         }
@@ -377,14 +366,10 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
 
     private int dim;
 
-    /**
-     * Gets the DropMap of the dim for the specified dim id
-     *
-     * @param id the dim number
-     */
+    //获取指定维度的矿石列表
     private void handleModDimDef(int id) {
         id = dim = MyMod.dimMapping.inverse()
-            .getOrDefault(a(), id);
+            .getOrDefault(getPluginDimensionName(), id);
         if (VoidMinerUtility.dropMapsByDimId.containsKey(id)) {
             this.dropMap = VoidMinerUtility.dropMapsByDimId.get(id);
         } else {
@@ -399,10 +384,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         }
     }
 
-    /**
-     * Computes first the ores related to the dim the VM is in, then the ores added manually, then it computes the
-     * totalWeight for normalisation
-     */
+    //计算矿石归一化的权重
     private void calculateDropMap() {
         this.dropMap = new VoidMinerUtility.DropMap();
         this.extraDropMap = new VoidMinerUtility.DropMap();
@@ -413,9 +395,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         this.totalWeight = dropMap.getTotalWeight() + extraDropMap.getTotalWeight();
     }
 
-    /**
-     * Output logic of the VM
-     */
+    //虚空矿石输出
     private void handleOutputs() {
         final List<ItemStack> inputOres = this.getStoredInputs()
             .stream()
@@ -431,19 +411,213 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         this.updateSlots();
     }
 
+    private Fluid mOil = null;
+    private final ArrayList<Chunk> mOilFieldChunks = new ArrayList<>();
+    private int chunkRangeConfig = getRangeInChunks();
 
-    protected boolean workingAtBottom(ItemStack aStack, int xDrill, int yDrill, int zDrill, int xPipe, int zPipe,
-        int yHead, int oldYHead) {
-        // if the dropMap has never been initialised or if the dropMap is empty
-        if (this.dropMap == null || this.totalWeight == 0) this.calculateDropMap();
-
-        if (this.totalWeight != 0.f) {
-            this.handleOutputs();
-            return true;
-        } else {
-            this.stopMachine(ShutDownReasonRegistry.NONE);
-            return false;
-        }
+    protected int getRangeInChunks() {
+        return 0;
     }
 
+    private boolean tryFillChunkList() {
+        FluidStack tFluid, tOil;
+        if (mOil == null) {
+            tFluid = undergroundOilReadInformation(getBaseMetaTileEntity());
+            if (tFluid == null) return false;
+            mOil = tFluid.getFluid();
+        }
+        if (debugDriller) {
+            GTLog.out.println(" Driller on  fluid = " + mOil == null ? null : mOil.getName());
+        }
+
+        tOil = new FluidStack(mOil, 0);
+
+        if (mOilFieldChunks.isEmpty()) {
+            Chunk tChunk = getBaseMetaTileEntity().getWorld()
+                .getChunkFromBlockCoords(getBaseMetaTileEntity().getXCoord(), getBaseMetaTileEntity().getZCoord());
+            int range = chunkRangeConfig;
+            int xChunk = Math.floorDiv(tChunk.xPosition, range) * range; // Java was written by idiots. For negative
+            // values, / returns rounded towards zero.
+            // Fucking morons.
+            int zChunk = Math.floorDiv(tChunk.zPosition, range) * range;
+            if (debugDriller) {
+                GTLog.out.println(
+                    "tChunk.xPosition = " + tChunk.xPosition
+                        + " tChunk.zPosition = "
+                        + tChunk.zPosition
+                        + " xChunk = "
+                        + xChunk
+                        + " zChunk = "
+                        + zChunk);
+            }
+            for (int i = 0; i < range; i++) {
+                for (int j = 0; j < range; j++) {
+                    if (debugDriller) {
+                        GTLog.out.println(" getChunkX = " + (xChunk + i) + " getChunkZ = " + (zChunk + j));
+                    }
+                    tChunk = getBaseMetaTileEntity().getWorld()
+                        .getChunkFromChunkCoords(xChunk + i, zChunk + j);
+                    tFluid = undergroundOilReadInformation(tChunk);
+                    if (debugDriller) {
+                        GTLog.out.println(
+                            " Fluid in chunk = " + tFluid.getFluid()
+                                .getID());
+                    }
+                    if (tOil.isFluidEqual(tFluid) && tFluid.amount > 0) {
+                        mOilFieldChunks.add(tChunk);
+                        if (debugDriller) {
+                            GTLog.out.println(" Matching fluid, quantity = " + tFluid.amount);
+                        }
+                    }
+                }
+            }
+        }
+        if (debugDriller) {
+            GTLog.out.println("mOilFieldChunks.size = " + mOilFieldChunks.size());
+        }
+        return !mOilFieldChunks.isEmpty();
+    }
+
+    /**
+     * Tries to pump oil, accounting for output space if void protection is enabled.
+     * <p>
+     * If pumped fluid will not fit in output hatches, it returns a result with INVALID.
+     * <p>
+     * If vein is depleted, it returns a result with VALID and null fluid.
+     */
+    private int mOilFlow = 0;
+
+    protected ValidationResult<FluidStack> tryPumpOil(float speed) {
+        if (mOil == null) return null;
+        if (debugDriller) {
+            GTLog.out.println(" pump speed = " + speed);
+        }
+
+        // Even though it works fine without this check,
+        // it can save tiny amount of CPU time when void protection is disabled
+        if (protectsExcessFluid()) {
+            FluidStack simulatedOil = pumpOil(speed, true);
+            if (!canOutputAll(new FluidStack[] { simulatedOil })) {
+                return ValidationResult.of(ValidationType.INVALID, null);
+            }
+        }
+
+        FluidStack pumpedOil = pumpOil(speed, false);
+        mOilFlow = pumpedOil.amount;
+        return ValidationResult.of(ValidationType.VALID, pumpedOil.amount == 0 ? null : pumpedOil);
+    }
+
+    /**
+     * @param speed    Speed to pump oil
+     * @param simulate If true, it actually does not consume vein
+     * @return Fluid pumped
+     */
+    protected FluidStack pumpOil(@Nonnegative float speed, boolean simulate) {
+        if (speed < 0) {
+            throw new IllegalArgumentException("Don't pass negative speed");
+        }
+
+        ArrayList<Chunk> emptyChunks = new ArrayList<>();
+        FluidStack returnOil = new FluidStack(mOil, 0);
+
+        for (Chunk tChunk : mOilFieldChunks) {
+            FluidStack pumped = undergroundOil(tChunk, simulate ? -speed : speed);
+            if (debugDriller) {
+                GTLog.out.println(
+                    " chunkX = " + tChunk.getChunkCoordIntPair().chunkXPos
+                        + " chunkZ = "
+                        + tChunk.getChunkCoordIntPair().chunkZPos);
+                if (pumped != null) {
+                    GTLog.out.println("     Fluid pumped = " + pumped.amount);
+                } else {
+                    GTLog.out.println("     No fluid pumped ");
+                }
+            }
+            if (pumped == null || pumped.amount < 1) {
+                emptyChunks.add(tChunk);
+                continue;
+            }
+            if (returnOil.isFluidEqual(pumped)) {
+                returnOil.amount += pumped.amount;
+            }
+        }
+        for (Chunk tChunk : emptyChunks) {
+            mOilFieldChunks.remove(tChunk);
+        }
+        return returnOil;
+    }
+
+    /** Allows inheritors to supply custom shutdown failure messages. */
+    private @NotNull String shutdownReason = "";
+    private CheckRecipeResult lastRuntimeFailure = null;
+
+    /**
+     * Gets a reason for why the drill turned off, for use in UIs and such.
+     *
+     * @return A reason, or empty if the machine is active or there is no message set yet.
+     */
+    @NotNull
+    protected Optional<String> getFailureReason() {
+        if (getBaseMetaTileEntity().isActive()) {
+            return Optional.empty();
+        }
+
+        if (!shutdownReason.isEmpty()) {
+            return Optional.of(shutdownReason);
+        }
+
+        return Optional.ofNullable(lastRuntimeFailure)
+            .map(CheckRecipeResult::getDisplayString);
+    }
+
+    protected int workState;
+    protected static final int STATE_DOWNWARD = 0, STATE_AT_BOTTOM = 1, STATE_UPWARD = 2, STATE_ABORT = 3;
+
+    public @NotNull List<String> reportMetrics() {
+        final boolean machineIsActive = getBaseMetaTileEntity().isActive();
+        final String failureReason = getFailureReason()
+            .map(reason -> StatCollector.translateToLocalFormatted("GT5U.gui.text.drill_offline_reason", reason))
+            .orElseGet(() -> StatCollector.translateToLocalFormatted("GT5U.gui.text.drill_offline_generic"));
+
+        if (workState == STATE_AT_BOTTOM) {
+            final ImmutableList.Builder<String> builder = ImmutableList.builder();
+            builder.add(StatCollector.translateToLocalFormatted("GT5U.gui.text.pump_fluid_type", getFluidName()));
+
+            if (machineIsActive) {
+                builder.add(
+                    StatCollector.translateToLocalFormatted(
+                        "GT5U.gui.text.pump_rate.1",
+                        EnumChatFormatting.AQUA + numberFormat.format(getFlowRatePerTick()))
+                        + StatCollector.translateToLocal("GT5U.gui.text.pump_rate.2"),
+                    mOilFlow + StatCollector.translateToLocal("GT5U.gui.text.pump_recovery.2"));
+            } else {
+                builder.add(failureReason);
+            }
+
+            return builder.build();
+        }
+
+        if (machineIsActive) {
+            return switch (workState) {
+                case STATE_DOWNWARD -> ImmutableList.of(StatCollector.translateToLocal("GT5U.gui.text.deploying_pipe"));
+                case STATE_UPWARD, STATE_ABORT -> ImmutableList
+                    .of(StatCollector.translateToLocal("GT5U.gui.text.retracting_pipe"));
+                default -> ImmutableList.of();
+            };
+        }
+
+        return ImmutableList.of(failureReason);
+    }
+
+    protected int getFlowRatePerTick() {
+        return this.mMaxProgresstime > 0 ? (mOilFlow / this.mMaxProgresstime) : 0;
+    }
+
+    @NotNull
+    private String getFluidName() {
+        if (mOil != null) {
+            return mOil.getLocalizedName(new FluidStack(mOil, 0));
+        }
+        return "None";
+    }
 }
