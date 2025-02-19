@@ -80,7 +80,9 @@ import gtneioreplugin.plugin.block.ModBlocks;
 import gtneioreplugin.plugin.item.ItemDimensionDisplay;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidRegistry;
 import org.jetbrains.annotations.NotNull;
+import util.SingularityFluidRecipes;
 
 public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> implements ISurvivalConstructable {
 
@@ -122,7 +124,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         .addElement(
             'h',
             buildHatchAdder(Singularity.class)
-                .atLeast(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy.or(ExoticEnergy))
+                .atLeast(OutputHatch, OutputBus, Maintenance)
                 .casingIndex(mcasingIndex)
                 .dot(1)
                 .buildAndChain(onElementPass(Singularity::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings4, 2))))
@@ -218,7 +220,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     }
 
     private List<IHatchElement<? super Singularity>> getAllowedHatches() {
-        return ImmutableList.of(InputHatch, OutputHatch, InputBus, OutputBus, Maintenance, Energy, ExoticEnergy);
+        return ImmutableList.of(OutputHatch, OutputBus, Maintenance);
     }
 
     // 获取最大并行数
@@ -272,34 +274,53 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         GTUtility.sendChatToPlayer(aPlayer, "Mode: " + (this.mBlacklist ? "Blacklist" : "Whitelist"));
     }
 
+    private boolean VoidFluidMode = false;
+
+    // 潜行左键切换多类型机器的类型
+    @Override
+    public void onLeftclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
+        if (aPlayer.isSneaking() && getBaseMetaTileEntity().isServerSide()) {
+            VoidFluidMode = !VoidFluidMode;
+            if (VoidFluidMode) {
+                GTUtility.sendChatToPlayer(aPlayer, "mode: VoidFluid");
+            }
+        }
+        super.onLeftclick(aBaseMetaTileEntity, aPlayer);
+    }
+
+    Map<Integer, FluidStack> FluidRecipes = SingularityFluidRecipes.VoidFliudRecipes.get(mLastDimensionOverride);
+
     //机器运行逻辑
     @Nonnull
     @Override
     public CheckRecipeResult checkProcessing() {
-        mMaxProgresstime = 3600;
+        mMaxProgresstime = 20;
         String dim = Optional.ofNullable(this.mInventory[1])
             .filter(s -> s.getItem() instanceof ItemDimensionDisplay)
             .map(ItemDimensionDisplay::getDimension)
-            .orElse("None")
-
-        ;
-        if (!Objects.equals(dim, mLastDimensionOverride)) {
-            mLastDimensionOverride = dim;
-            totalWeight = 0;
-        }
-        if (this.dropMap == null || this.totalWeight == 0) {
-            this.calculateDropMap();
-        }
-        if (this.totalWeight != 0.f) {
-            for (int mLoop = 0; mLoop < 256; mLoop++){
-                this.handleOutputs();
+            .orElse("None");
+        if (VoidFluidMode){
+            if (FluidRecipes != null){
+                this.FluidOutPuts();
+                return CheckRecipeResultRegistry.SUCCESSFUL;
             }
-            return CheckRecipeResultRegistry.SUCCESSFUL;
         } else {
-            this.stopMachine(ShutDownReasonRegistry.NONE);
-            return CheckRecipeResultRegistry.NO_RECIPE;
+            if (!Objects.equals(dim, mLastDimensionOverride)) {
+                mLastDimensionOverride = dim;
+                totalWeight = 0;
+            }
+            if (this.dropMap == null || this.totalWeight == 0) {
+                this.calculateDropMap();
+            }
+            if (this.totalWeight != 0.f) {
+                for (int mLoop = 0; mLoop < 256; mLoop++){
+                    this.handleOutputs();
+                }
+                return CheckRecipeResultRegistry.SUCCESSFUL;
+            }
         }
-
+        this.stopMachine(ShutDownReasonRegistry.NONE);
+        return CheckRecipeResultRegistry.NO_RECIPE;
     }
 
     //获取主方块显示内容
@@ -411,213 +432,20 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         this.updateSlots();
     }
 
-    private Fluid mOil = null;
-    private final ArrayList<Chunk> mOilFieldChunks = new ArrayList<>();
-    private int chunkRangeConfig = getRangeInChunks();
-
-    protected int getRangeInChunks() {
-        return 0;
-    }
-
-    private boolean tryFillChunkList() {
-        FluidStack tFluid, tOil;
-        if (mOil == null) {
-            tFluid = undergroundOilReadInformation(getBaseMetaTileEntity());
-            if (tFluid == null) return false;
-            mOil = tFluid.getFluid();
+    private FluidStack fluid = new FluidStack(FluidRegistry.WATER, 0) {
+        public String getLocalizedName() {
+            return "None";
         }
-        if (debugDriller) {
-            GTLog.out.println(" Driller on  fluid = " + mOil == null ? null : mOil.getName());
+    };
+
+    //虚空流体输出
+    private void FluidOutPuts() {
+        for (int i = 0; i < FluidRecipes.size(); i++){
+            FluidStack recipeFluid = FluidRecipes.get(i);
+            fluid = recipeFluid.copy();
+            mOutputFluids = new FluidStack[] {fluid};
+            final FluidStack output = fluid;
+            output.amount = getMaxParallel();
         }
-
-        tOil = new FluidStack(mOil, 0);
-
-        if (mOilFieldChunks.isEmpty()) {
-            Chunk tChunk = getBaseMetaTileEntity().getWorld()
-                .getChunkFromBlockCoords(getBaseMetaTileEntity().getXCoord(), getBaseMetaTileEntity().getZCoord());
-            int range = chunkRangeConfig;
-            int xChunk = Math.floorDiv(tChunk.xPosition, range) * range; // Java was written by idiots. For negative
-            // values, / returns rounded towards zero.
-            // Fucking morons.
-            int zChunk = Math.floorDiv(tChunk.zPosition, range) * range;
-            if (debugDriller) {
-                GTLog.out.println(
-                    "tChunk.xPosition = " + tChunk.xPosition
-                        + " tChunk.zPosition = "
-                        + tChunk.zPosition
-                        + " xChunk = "
-                        + xChunk
-                        + " zChunk = "
-                        + zChunk);
-            }
-            for (int i = 0; i < range; i++) {
-                for (int j = 0; j < range; j++) {
-                    if (debugDriller) {
-                        GTLog.out.println(" getChunkX = " + (xChunk + i) + " getChunkZ = " + (zChunk + j));
-                    }
-                    tChunk = getBaseMetaTileEntity().getWorld()
-                        .getChunkFromChunkCoords(xChunk + i, zChunk + j);
-                    tFluid = undergroundOilReadInformation(tChunk);
-                    if (debugDriller) {
-                        GTLog.out.println(
-                            " Fluid in chunk = " + tFluid.getFluid()
-                                .getID());
-                    }
-                    if (tOil.isFluidEqual(tFluid) && tFluid.amount > 0) {
-                        mOilFieldChunks.add(tChunk);
-                        if (debugDriller) {
-                            GTLog.out.println(" Matching fluid, quantity = " + tFluid.amount);
-                        }
-                    }
-                }
-            }
-        }
-        if (debugDriller) {
-            GTLog.out.println("mOilFieldChunks.size = " + mOilFieldChunks.size());
-        }
-        return !mOilFieldChunks.isEmpty();
-    }
-
-    /**
-     * Tries to pump oil, accounting for output space if void protection is enabled.
-     * <p>
-     * If pumped fluid will not fit in output hatches, it returns a result with INVALID.
-     * <p>
-     * If vein is depleted, it returns a result with VALID and null fluid.
-     */
-    private int mOilFlow = 0;
-
-    protected ValidationResult<FluidStack> tryPumpOil(float speed) {
-        if (mOil == null) return null;
-        if (debugDriller) {
-            GTLog.out.println(" pump speed = " + speed);
-        }
-
-        // Even though it works fine without this check,
-        // it can save tiny amount of CPU time when void protection is disabled
-        if (protectsExcessFluid()) {
-            FluidStack simulatedOil = pumpOil(speed, true);
-            if (!canOutputAll(new FluidStack[] { simulatedOil })) {
-                return ValidationResult.of(ValidationType.INVALID, null);
-            }
-        }
-
-        FluidStack pumpedOil = pumpOil(speed, false);
-        mOilFlow = pumpedOil.amount;
-        return ValidationResult.of(ValidationType.VALID, pumpedOil.amount == 0 ? null : pumpedOil);
-    }
-
-    /**
-     * @param speed    Speed to pump oil
-     * @param simulate If true, it actually does not consume vein
-     * @return Fluid pumped
-     */
-    protected FluidStack pumpOil(@Nonnegative float speed, boolean simulate) {
-        if (speed < 0) {
-            throw new IllegalArgumentException("Don't pass negative speed");
-        }
-
-        ArrayList<Chunk> emptyChunks = new ArrayList<>();
-        FluidStack returnOil = new FluidStack(mOil, 0);
-
-        for (Chunk tChunk : mOilFieldChunks) {
-            FluidStack pumped = undergroundOil(tChunk, simulate ? -speed : speed);
-            if (debugDriller) {
-                GTLog.out.println(
-                    " chunkX = " + tChunk.getChunkCoordIntPair().chunkXPos
-                        + " chunkZ = "
-                        + tChunk.getChunkCoordIntPair().chunkZPos);
-                if (pumped != null) {
-                    GTLog.out.println("     Fluid pumped = " + pumped.amount);
-                } else {
-                    GTLog.out.println("     No fluid pumped ");
-                }
-            }
-            if (pumped == null || pumped.amount < 1) {
-                emptyChunks.add(tChunk);
-                continue;
-            }
-            if (returnOil.isFluidEqual(pumped)) {
-                returnOil.amount += pumped.amount;
-            }
-        }
-        for (Chunk tChunk : emptyChunks) {
-            mOilFieldChunks.remove(tChunk);
-        }
-        return returnOil;
-    }
-
-    /** Allows inheritors to supply custom shutdown failure messages. */
-    private @NotNull String shutdownReason = "";
-    private CheckRecipeResult lastRuntimeFailure = null;
-
-    /**
-     * Gets a reason for why the drill turned off, for use in UIs and such.
-     *
-     * @return A reason, or empty if the machine is active or there is no message set yet.
-     */
-    @NotNull
-    protected Optional<String> getFailureReason() {
-        if (getBaseMetaTileEntity().isActive()) {
-            return Optional.empty();
-        }
-
-        if (!shutdownReason.isEmpty()) {
-            return Optional.of(shutdownReason);
-        }
-
-        return Optional.ofNullable(lastRuntimeFailure)
-            .map(CheckRecipeResult::getDisplayString);
-    }
-
-    protected int workState;
-    protected static final int STATE_DOWNWARD = 0, STATE_AT_BOTTOM = 1, STATE_UPWARD = 2, STATE_ABORT = 3;
-
-    public @NotNull List<String> reportMetrics() {
-        final boolean machineIsActive = getBaseMetaTileEntity().isActive();
-        final String failureReason = getFailureReason()
-            .map(reason -> StatCollector.translateToLocalFormatted("GT5U.gui.text.drill_offline_reason", reason))
-            .orElseGet(() -> StatCollector.translateToLocalFormatted("GT5U.gui.text.drill_offline_generic"));
-
-        if (workState == STATE_AT_BOTTOM) {
-            final ImmutableList.Builder<String> builder = ImmutableList.builder();
-            builder.add(StatCollector.translateToLocalFormatted("GT5U.gui.text.pump_fluid_type", getFluidName()));
-
-            if (machineIsActive) {
-                builder.add(
-                    StatCollector.translateToLocalFormatted(
-                        "GT5U.gui.text.pump_rate.1",
-                        EnumChatFormatting.AQUA + numberFormat.format(getFlowRatePerTick()))
-                        + StatCollector.translateToLocal("GT5U.gui.text.pump_rate.2"),
-                    mOilFlow + StatCollector.translateToLocal("GT5U.gui.text.pump_recovery.2"));
-            } else {
-                builder.add(failureReason);
-            }
-
-            return builder.build();
-        }
-
-        if (machineIsActive) {
-            return switch (workState) {
-                case STATE_DOWNWARD -> ImmutableList.of(StatCollector.translateToLocal("GT5U.gui.text.deploying_pipe"));
-                case STATE_UPWARD, STATE_ABORT -> ImmutableList
-                    .of(StatCollector.translateToLocal("GT5U.gui.text.retracting_pipe"));
-                default -> ImmutableList.of();
-            };
-        }
-
-        return ImmutableList.of(failureReason);
-    }
-
-    protected int getFlowRatePerTick() {
-        return this.mMaxProgresstime > 0 ? (mOilFlow / this.mMaxProgresstime) : 0;
-    }
-
-    @NotNull
-    private String getFluidName() {
-        if (mOil != null) {
-            return mOil.getLocalizedName(new FluidStack(mOil, 0));
-        }
-        return "None";
     }
 }

@@ -121,10 +121,6 @@ public class SingularityFluidRecipes {
         Map<Integer,FluidStack> BarnardFRecipes = new HashMap<>();
         BarnardFRecipes.put(1, Materials.Tin.getMolten(1000));
 
-        //T8 - CentauriBb
-        Map<Integer,FluidStack> CentauriBbRecipes = new HashMap<>();
-        CentauriBbRecipes.put(1, Materials.Copper.getMolten(1000));
-
         //T8 - TCetiE
         Map<Integer,FluidStack> TCetiERecipes = new HashMap<>();
         TCetiERecipes.put(1, Materials.Hydrogen.getGas(1000));
@@ -135,6 +131,27 @@ public class SingularityFluidRecipes {
         DeepDarkRecipes.put(1, Materials.Hydrogen.getGas(1000));
         DeepDarkRecipes.put(2, Materials.OilExtraHeavy.getFluid(1000));
 
-        VoidFliudRecipes.put("planet.Overworld", OverworldRecipes);
+        VoidFliudRecipes.put("T0: Overworld", OverworldRecipes);
+        VoidFliudRecipes.put("T1: Moon", MoonRecipes);
+        VoidFliudRecipes.put("T2: Mars", MarsRecipes);
+        VoidFliudRecipes.put("T3: Callisto", CallistoRecipes);
+        VoidFliudRecipes.put("T3: Europa", EuropaRecipes);
+        VoidFliudRecipes.put("T3: Ross128b", Ross128bRecipes);
+        VoidFliudRecipes.put("T4: Io", IoRecipes);
+        VoidFliudRecipes.put("T4: Mercury", MercuryRecipes);
+        VoidFliudRecipes.put("T4: Venus", VenusRecipes);
+        VoidFliudRecipes.put("T5: Miranda", MirandaRecipes);
+        VoidFliudRecipes.put("T5: Oberon", OberonRecipes);
+        VoidFliudRecipes.put("T5: Titan", TitanRecipes);
+        VoidFliudRecipes.put("T5: Ross128ba", Ross128baRecipes);
+        VoidFliudRecipes.put("T6: Proteus", ProteusRecipes);
+        VoidFliudRecipes.put("T6: Triton", TritonRecipes);
+        VoidFliudRecipes.put("T7: Makemake", MakemakeRecipes);
+        VoidFliudRecipes.put("T7: Pluto", PlutoRecipes);
+        VoidFliudRecipes.put("T8: Barnard C", BarnardCRecipes);
+        VoidFliudRecipes.put("T8: Barnard E", BarnardERecipes);
+        VoidFliudRecipes.put("T8: Barnard F", BarnardFRecipes);
+        VoidFliudRecipes.put("T8: T Ceti E", TCetiERecipes);
+        VoidFliudRecipes.put("T10: Deep Dark", DeepDarkRecipes);
     }
 }
