@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnegative;
@@ -101,6 +102,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         super.saveNBTData(aNBT);
         aNBT.setBoolean("mBlacklist", this.mBlacklist);
         aNBT.setString("mLastDimensionOverride", this.mLastDimensionOverride);
+        aNBT.setBoolean("mVoidFluidMode", VoidFluidMode);
     }
 
     @Override
@@ -108,7 +110,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         super.saveNBTData(aNBT);
         this.mBlacklist = aNBT.getBoolean("mBlacklist");
         this.mLastDimensionOverride = aNBT.getString("mLastDimensionOverride");
-
+        this.VoidFluidMode = aNBT.getBoolean("mVoidFluidMode");
     }
 
     private static final int mcasingIndex = Textures.BlockIcons.getTextureIndex(
@@ -432,20 +434,10 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         this.updateSlots();
     }
 
-    private FluidStack fluid = new FluidStack(FluidRegistry.WATER, 0) {
-        public String getLocalizedName() {
-            return "None";
-        }
-    };
-
     //虚空流体输出
     private void FluidOutPuts() {
-        for (int i = 0; i < FluidRecipes.size(); i++){
-            FluidStack recipeFluid = FluidRecipes.get(i);
-            fluid = recipeFluid.copy();
-            mOutputFluids = new FluidStack[] {fluid};
-            final FluidStack output = fluid;
-            output.amount = getMaxParallel();
-        }
+        Random random = new Random();
+        FluidStack recipeFluid = FluidRecipes.get(random.nextInt(FluidRecipes.size())).copy();
+        recipeFluid.amount = getMaxParallel();
     }
 }
