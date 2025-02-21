@@ -126,7 +126,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
         .addElement(
             'h',
             buildHatchAdder(Singularity.class)
-                .atLeast(OutputHatch, OutputBus, Maintenance)
+                .atLeast(OutputHatch, InputBus, OutputBus, Maintenance)
                 .casingIndex(mcasingIndex)
                 .dot(1)
                 .buildAndChain(onElementPass(Singularity::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings4, 2))))
@@ -222,7 +222,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
     }
 
     private List<IHatchElement<? super Singularity>> getAllowedHatches() {
-        return ImmutableList.of(OutputHatch, OutputBus, Maintenance);
+        return ImmutableList.of(OutputHatch, InputBus, OutputBus, Maintenance);
     }
 
     // 获取最大并行数
@@ -285,12 +285,14 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
             VoidFluidMode = !VoidFluidMode;
             if (VoidFluidMode) {
                 GTUtility.sendChatToPlayer(aPlayer, "mode: VoidFluid");
+            } else {
+                GTUtility.sendChatToPlayer(aPlayer, "mode: VoidOre");
             }
         }
         super.onLeftclick(aBaseMetaTileEntity, aPlayer);
     }
 
-    Map<Integer, FluidStack> FluidRecipes = SingularityFluidRecipes.VoidFliudRecipes.get(mLastDimensionOverride);
+
 
     //机器运行逻辑
     @Nonnull
@@ -302,6 +304,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
             .map(ItemDimensionDisplay::getDimension)
             .orElse("None");
         if (VoidFluidMode){
+            Map<Integer, FluidStack> FluidRecipes = SingularityFluidRecipes.VoidFliudRecipes.get(dim);
             if (FluidRecipes != null){
                 this.FluidOutPuts();
                 return CheckRecipeResultRegistry.SUCCESSFUL;
@@ -436,6 +439,7 @@ public class Singularity extends MTEExtendedPowerMultiBlockBase<Singularity> imp
 
     //虚空流体输出
     private void FluidOutPuts() {
+        Map<Integer, FluidStack> FluidRecipes = SingularityFluidRecipes.VoidFliudRecipes.get(mLastDimensionOverride);
         Random random = new Random();
         FluidStack recipeFluid = FluidRecipes.get(random.nextInt(FluidRecipes.size())).copy();
         recipeFluid.amount = getMaxParallel();
